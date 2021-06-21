@@ -63,10 +63,10 @@ t = a.mallat_tensor(_filter, level=level)
 
 print(t)
 
-ret= mallat_rec(t, dual_filter=_filter)
-ret.to_image(resize=True).show()
+# ret= mallat_rec(t, dual_filter=_filter)
+# ret.to_image(resize=True).show()
 
-# import matplotlib.pyplot as plt
-# fig = plt.figure(constrained_layout=True)
-# draw(t, fig)
-# plt.show()
+import matplotlib.pyplot as plt
+fig = plt.figure(constrained_layout=True)
+draw(t, fig)
+plt.show()

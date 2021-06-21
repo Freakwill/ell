@@ -18,6 +18,10 @@ A sequence is an array with start-index and end-index,
 
 When adding or other operator acting on two sequences, you have two fit their indexes, that has been done by a decorator silently.
 
+
+
+the space of sequences is a type of normal (Banach) space, also a type of *-normal (Banach) algebra
+
 ## Main classes
 
 ### Basic classes
@@ -76,7 +80,8 @@ im.to_image().show()
 
 # filtering by wavelets
 im = ImageRGB.open('lenna.jpg')
-im = (im @ Filter.from_name('db2').H).D  # Hx = D(xh*)
+im = (im @ Filter.from_name('db2').H).D
+# implement of Hx = D(x*h~)
 # im = im.reduce(Filter.from_name('db2'))
 im.to_image().show()
 ```
@@ -92,4 +97,5 @@ There are some experiements in `examples/` most of whom are related to wavelets.
 - [ ] define filter banks
 - [ ] design a logo
 - [ ] index should be a tuple in feature
+- [ ] periodic sequences.
 

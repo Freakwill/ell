@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-'''
-An open source Python library for working with sequance spaces ell^p
 
-Sequance spaces is a linear space in math.
-A sequance is represented by two parts:
+r"""
+An open source Python library for working with sequance spaces $\ell^p$
+
+Sequence spaces is a type of linear space in math.
+
+A sequence is represented by two parts:
 1. values: np.ndarray
 2. min_index, max_index: lower bound and upper bound of the indexes on which the values are non-zero.
 By default, the indexes start from 0
@@ -12,7 +14,7 @@ By default, the indexes start from 0
 -------------------------------
 Author: William
 From: 2015-07-28 (this work is initialized from 2015 with Matlab)
-'''
+"""
 
 
 import copy
@@ -53,7 +55,8 @@ def fit(f):
     return _f
 
 class BaseEll(np.ndarray):
-    # Ell Class: sequence spaces on Z^n
+    """Ell Class: sequence spaces on Z^n
+    """
 
     def __new__(cls, array, min_index=0, max_index=None, *args, **kwargs):
 
@@ -346,14 +349,17 @@ length: {self.size}"""
         min_index, max_index = -self.max_index, -self.min_index
         return self.__class__(array, min_index=min_index, max_index=max_index)
 
+    def reflect(self):
+        # alias of `refl`
+        return self.refl()
+
     @property
     def R(self):
         return self.refl()
 
     def hermite(self):
-        array = np.conj(self.refl())
-        min_index, max_index = -self.max_index, -self.min_index
-        return self.__class__(array, min_index=min_index, max_index=max_index)
+        obj = self.refl()
+        return np.conj(obj)
 
     @property
     def H(self):
@@ -539,10 +545,14 @@ length: {self.size}"""
         self.hermite = MethodType(lambda obj: obj.refl(), self)
 
 
-class BaseRealEll(BaseEll):
+class AsReal:
+    # just let star-operator == reflecting operator
     @property
     def star(self):
         return self.refl()
+
+class BaseRealEll(AsReal, BaseEll):
+    pass
 
 
 class BaseMultiEll(BaseEll):
