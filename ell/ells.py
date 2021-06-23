@@ -328,7 +328,7 @@ length: {self.size}"""
 
     # basic operation
     def truncate(self, threshold, soft=False):
-        assert threshold > 0
+        # assert threshold > 0
         cpy = self.copy()
         _setitem(cpy, np.abs(self)<=threshold, 0)
         if soft:

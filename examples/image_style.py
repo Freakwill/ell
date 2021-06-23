@@ -4,22 +4,23 @@ from ell import *
 import numpy as np
 from ell.utils import max0
 
+from PIL import Image
 
-def mallat_rec(tree, dual_filter, level=0):
+def mallat_rec(tree, filter1, filter2, level=0):
     if tree.depth() == 1:
         n1 = tree.get_node(level+1)
         n11, n12, n13 = (tree.get_node((level+1, k)) for k in range(1,4))
-        return n1.data.expand(dual_filter)\
-        + n11.data.expand(dual_filter.tensor(dual_filter.check()))\
-        + n12.data.expand(dual_filter.check().tensor(dual_filter))\
-        + n13.data.expand(dual_filter.check())
+        return n1.data.expand(filter1)\
+        + n11.data.expand(filter2.tensor(filter2.check()))\
+        + n12.data.expand(filter2.check().tensor(filter2))\
+        + n13.data.expand(filter2.check())
     else:
-        m = mallat_rec(tree.subtree(level+1), dual_filter, level=level+1)
+        m = mallat_rec(tree.subtree(level+1), filter1, filter2, level=level+1)
         n11, n12, n13 = (tree.get_node((level+1, k)) for k in range(1,4))
-        return m.expand(dual_filter)\
-        + n11.data.expand(dual_filter.tensor(dual_filter.check()))\
-        + n12.data.expand(dual_filter.check().tensor(dual_filter))\
-        + n13.data.expand(dual_filter.check())
+        return m.expand(filter1)\
+        + n11.data.expand(filter2.tensor(filter2.check()))\
+        + n12.data.expand(filter2.check().tensor(filter2))\
+        + n13.data.expand(filter2.check())
 
 
 def draw(tree, fig):
@@ -52,17 +53,13 @@ def draw(tree, fig):
     _draw(tree, level, gs)
     fig.suptitle("Mallat Algo. for Tensor Wavelets")
 
+im = Image.open('lenna.jpg')
 
-level = 2
-_filter = Filter.from_name('db5')
+level = 6
+_filter1 = Filter.from_name('db5')
+_filter2 = Filter.from_name('db2')
+a = ImageRGB.from_image(im)
+t = a.mallat_tensor(_filter1, level=level)
 
-a = ImageRGB.open('lenna.jpg')
-t = a.mallat_tensor(_filter, level=level)
-
-print(t)
-
-
-import matplotlib.pyplot as plt
-fig = plt.figure(constrained_layout=True)
-draw(t, fig)
-plt.show()
+ret= mallat_rec(t, filter1=_filter1, filter2=_filter2)
+ret.resize_as(a).to_image().show()

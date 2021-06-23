@@ -3,8 +3,19 @@ from .utils import max0
 from PIL import Image
 
 class ImageLike:
+    """Mixin for image classes
+    Only define some basic operators on images here.
+    """
     @classmethod
     def open(cls, filename, *args, **kwargs):
+        """open an image file, and read it as an 2d array
+        
+        Arguments:
+            filename {str} -- file name of the image
+        
+        Returns:
+            object of current cls
+        """
         return cls.from_image(Image.open(filename), *args, **kwargs)
 
     def minmaxmap(self, lb=0, ub=255):
@@ -76,6 +87,16 @@ class WaveletTree(Tree):
     def __init__(self, level=0, *args, **kwargs):
         super().__init__(node_class=WaveletNode, *args, **kwargs)
         self._level = level
+
+    def apply_data(self, key, low_key=None):
+        cpy = self._clone(with_tree=True)
+        for node in cpy.all_nodes_itr():
+            if node.tag.startswith('L'):
+                if low_key:
+                    node.data = low_key(node.data)
+            else:
+                node.data = key(node.data)
+        return cpy
 
 class WaveletNode(Node):
     @property

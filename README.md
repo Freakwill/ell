@@ -73,7 +73,7 @@ assert isinstance(a.tensor(), Ell2d)
 #### image process
 
 ```python
-im = ImageRGB.open('lenna.jpg')
+im ImageRGB.open('lenna.jpg')
 im = im @ Ell1d([1/2,-1, 1/2])
 # equiv. to im = im @ Ell1d([1/2,-1, 1/2]).tensor()
 im.to_image().show()
@@ -83,6 +83,7 @@ im = ImageRGB.open('lenna.jpg')
 im = (im @ Filter.from_name('db2').H).D
 # implement of Hx = D(x*h~)
 # im = im.reduce(Filter.from_name('db2'))
+
 im.to_image().show()
 ```
 
@@ -98,4 +99,5 @@ There are some experiements in `examples/` most of whom are related to wavelets.
 - [ ] design a logo
 - [ ] index should be a tuple in feature
 - [ ] periodic sequences.
+- [ ] audio process
 
