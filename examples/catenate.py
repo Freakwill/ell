@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 
 from ell import *
+from ell.utils import max0
 import numpy as np
 
 level = 6
-_filter = Filter.from_name('db10')
+_filter = Filter.from_name('db6')
 
 from PIL import Image
 
-a = Image.open('apple2.jpeg')
-b = Image.open('orange2.jpeg').resize(a.size)
+a = Image.open('apple1.jpeg')
+b = Image.open('orange1.jpeg').resize(a.size)
 
 def lrmerge(im1, im2, loc=None):
     xsize1, ysize1 = im1.size
@@ -26,7 +27,6 @@ def lrmerge(im1, im2, loc=None):
 c = lrmerge(a, b)
 a = ImageRGB.from_image(a)
 b = ImageRGB.from_image(b)
-c = ImageRGB.from_image(c)
 
 _, Lb, _, _ = b.pyramid(_filter, level=level)
 
@@ -34,11 +34,13 @@ def key(L):
     def _key(d):
         k = d.shape[1] // 2
         dd = np.asarray(d)
-        dd[:,k-20:k+20] = 0.5*dd[:, k-20:k+20]+0.5*np.ndarray.__getitem__(L, np.s_[:, k-20:k+20])
-        dd[:,k:] = np.ndarray.__getitem__(L, np.s_[:,k:])
-        dd[:,k-1:k+2] = dd[:,k-1:k+2] * (np.abs(dd[:,k-1:k+2])>150)
+        r = min(max(int(k * 0.05), 2), 10)
+        dd[:,k+r:] = np.ndarray.__getitem__(L, np.s_[:,k+r:])
+        dd[:,k-r:k+r] = 0.5*dd[:, k-r:k+r]+0.5*np.ndarray.__getitem__(L, np.s_[:, k-r:k+r])
+        r //=2
+        dd[:,k-r:k+r] = max0(dd[:,k-r:k+r], 50)
         d = d.__class__(dd, min_index=d.min_index, max_index=d.max_index)
-        return d.truncate(50)
+        return d
     return _key
 
 _, _, _, gauss = a.pyramid(_filter, level=level, op=tuple(map(key, Lb)), resize=True)
@@ -47,7 +49,7 @@ import matplotlib.pyplot as plt
 fig = plt.figure()
 fig.suptitle('Image Mosaics')
 ax = fig.subplots(1,2)
-ax[0].imshow(c.to_image())
+ax[0].imshow(c)
 ax[1].imshow(gauss[0].minmaxmap().to_image())
 ax[0].set_title('catenated Image')
 ax[0].axis('off')
