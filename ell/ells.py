@@ -19,10 +19,12 @@ From: 2015-07-28 (this work is initialized from 2015 with Matlab)
 
 import copy
 from types import MethodType
+from collections import Iterable
 
 import numpy as np
 import scipy.signal as signal
 from .utils import *
+from .errors import *
 
 
 COLON = np.s_[:]
@@ -41,9 +43,11 @@ _imul = np.ndarray.__imul__
 _div = np.ndarray.__truediv__
 _rdiv = np.ndarray.__rtruediv__
 _idiv = np.ndarray.__itruediv__
+_equal = np.equal
 
 
 def fit(f):
+    # decorator for operators of Ell objects
     def _f(obj, other):
         if np.isscalar(other):
             pass
@@ -58,19 +62,23 @@ class BaseEll(np.ndarray):
     """Ell Class: sequence spaces on Z^n
     """
 
+    ndim = None
+
     def __new__(cls, array, min_index=0, max_index=None, *args, **kwargs):
 
         obj = np.asarray(array).view(cls)
-        if isinstance(min_index, int):
-            obj.min_index = np.array((min_index,)*obj.ndim)
-        else:
-            obj.min_index = np.array(min_index)
-        if max_index is None:
-            obj.max_index = min_index + np.array(obj.shape) - 1
-        else:
+        if isinstance(min_index, (int, Iterable)):
+            if max_index is None:
+                obj.min_index = min_index
+            elif isinstance(max_index, (int, Iterable)):
+                obj._min_index = min_index if np.isscalar(min_index) else tuple(min_index)
+                obj._max_index = max_index if np.isscalar(max_index) else tuple(max_index)
+            else:
+                raise TypeError('type of `max_index` should be int or iterable object.')
+        elif max_index is None:
+            raise IndexUnavailableError()
+        elif isinstance(max_index, (int, Iterable)):
             obj.max_index = max_index
-            shape = obj.max_index - obj.min_index + 1
-            obj = np.asarray(array).view(cls)
         return obj
 
     def __array_finalize__(self, obj):
@@ -80,19 +88,13 @@ class BaseEll(np.ndarray):
             __array_finalize__(self, np.array(obj)) 
             return
         if isinstance(obj, BaseEll):
-            self.min_index = copy.copy(obj.min_index)
-            self.max_index = copy.copy(obj.max_index)
+            self._min_index = obj.min_index
+            self._max_index = obj.max_index
         elif isinstance(obj, np.ndarray):
-            if obj.ndim == 1:
-                if not hasattr(self, 'min_index'):
-                    self.min_index = 0
-                if not hasattr(self, 'max_index'):
-                    self.max_index = self.min_index + obj.size - 1
-            else:
-                if not hasattr(self, 'min_index'):
-                    self.min_index = np.zeros(obj.ndim, dtype=int)
-                if not hasattr(self, 'max_index'):
-                    self.max_index = self.min_index + np.array(obj.shape, dtype=int) - 1
+            if not hasattr(self, 'min_index'):
+                self._min_index = 0
+            if not hasattr(self, 'max_index'):
+                self._max_index = np.subtract(obj.shape, 1)
         else:
             raise TypeError('Type of `obj` should be BaseEll | ndarray | tuple | list')
 
@@ -104,19 +106,57 @@ class BaseEll(np.ndarray):
 
     @property
     def min_index(self):
-        return self.__min_index
+        return self._min_index
     
     @min_index.setter
     def min_index(self, v):
-        self.__min_index = v
+        if v is None: return
+        if np.isscalar(v):
+            self._min_index = tuple(v for _ in range(self.ndim))
+        else:
+            self._min_index = tuple(v)
+        self._max_index = tuple(np.add(v, self.shape) - 1)
 
     @property
     def max_index(self):
-        return self.__max_index
+        return self._max_index
 
     @max_index.setter
     def max_index(self, v):
-        self.__max_index = v
+        if v is None: return
+        self._max_index = tuple(v)
+        self._min_index = tuple(np.subtract(v, self.shape) + 1)
+
+
+    def set_min_index(self, v, axis=None):
+        if axis is None:
+            if isinstance(v, int):
+                if isinstance(self, Ell1d):
+                    self.min_index = v
+                else:
+                    self.min_index = tuple(v for _ in range(self.ndim))
+            else:
+                self.min_index = v
+        else:
+            self.min_index = replace_tuple(self.min_index, v, axis)
+
+    def inc_min_index(self, v, axis=None):
+        self.min_index = inc_tuple(self.min_index, v, axis)
+
+    def set_max_index(self, v, axis=None):
+        if axis is None:
+            if isinstance(v, int):
+                if isinstance(self, Ell1d):
+                    self.max_index = v
+                else:
+                    self.max_index = tuple(v for _ in range(self.ndim))
+            else:
+                self.max_index = v
+        else:
+            self.max_index = replace_tuple(self.max_index, v, axis)
+
+    def inc_max_index(self, v, axis=None):
+        self.max_index = inc_tuple(self.max_index, v, axis)
 
     @property
     def irange(self):
@@ -176,14 +216,22 @@ class BaseEll(np.ndarray):
             else:
                 return cls(np.zeros((1,)*ndim), min_index=min_index)
         else:
-            shape = max_index - min_index + 1
-            return cls(np.zeros(shape), min_index=min_index, max_index=max_index)
+            shape = np.subtract(max_index, min_index) + 1
+            return cls(np.zeros(shape), min_index=min_index)
 
     @classmethod
-    def unit(cls, shape=(1,), ind=0):
-        e = cls.zero()
-        e[ind] = 1
-        return e
+    def unit(cls, index=0, ndim=None, *args, **kwargs):
+        ndim = ndim or cls.ndim or 1
+        if ndim == 1:
+            e = cls.zero()
+            e[index] = 1
+            return e
+        else:
+            if np.isscalar(index):
+                index = tuple(index for _ in range(ndim))
+            e = cls.zero()
+            e[index] = 1
+            return e
 
     # basic methods
     def __str__(self):
@@ -200,12 +248,12 @@ class BaseEll(np.ndarray):
         elif spec in {'index', 'i'}:
             return f'{self.min_index}:{self.max_index}'
         elif spec in {'Shape', 's'}:
-            return f'{self.min_index}:{self.max_index}; {self.length}'
+            return f'{self.min_index}:{self.max_index}; {self.shape}'
         elif spec in {'full', 'f'}:
             return f"""type: {self.__class__}
             coordinates: {self}
 index range: {self.min_index}:{self.max_index}
-length: {self.size}"""
+shape: {self.shape}"""
         else:
             return str(self)
 
@@ -216,7 +264,7 @@ length: {self.size}"""
         if np.isscalar(other):
             np.all(super().__eq__(other))
         elif isinstance(other, BaseEll):
-            return np.all(super().__eq__(other)) and np.all(self.min_index == other.min_index) and np.all(self.max_index == other.max_index)
+            return np.all(_equal(self, other)) and np.all(self.min_index == other.min_index) and np.all(self.max_index == other.max_index)
         else:
             raise TypeError("type of `other` is invalid!")
 
@@ -285,12 +333,12 @@ length: {self.size}"""
         cpy = self.copy()
         if n_zeros > 0:
             array = np.concatenate([cpy, np.zeros(size)], axis=axis)
-            cpy.max_index[axis] += n_zeros
-            return self.__class__(array, min_index=cpy.min_index, max_index=cpy.max_index)
+            cpy.inc_max_index(n_zeros, axis=axis)
+            return self.__class__(array, min_index=None, max_index=cpy.max_index)
         elif n_zeros < 0:
             array = np.concatenate([np.zeros(size), cpy], axis=axis)
-            cpy.min_index[axis] += n_zeros
-            return self.__class__(array, min_index=cpy.min_index, max_index=cpy.max_index)
+            cpy.inc_min_index(n_zeros, axis=axis)
+            return self.__class__(array, min_index=cpy.min_index)
 
     def resize_as(self, other):
         return self.resize(min_index=other.min_index, max_index=other.max_index)
@@ -298,17 +346,18 @@ length: {self.size}"""
     def resize(self, min_index=None, max_index=None):
         # make self.min_index==min_index, self.max_index==max_index
 
-        if min_index is not None and max_index is not None:
+        if min_index is None:
+            min_index = self.min_index
+            if max_index is None:
+                return self.copy()
+        elif max_index is None:
+            max_index = self.max_index
+        else:
             if np.all(min_index>self.max_index) or np.all(max_index<self.min_index):
                 return self.zero()
-        else:
-            if min_index is None:
-                min_index = self.min_index
-            if max_index is None:
-                max_index = self.max_index
 
-        m = min_index - self.min_index
-        M = max_index - self.max_index
+        m = np.subtract(min_index, self.min_index)
+        M = np.subtract(max_index, self.max_index)
         cpy = self.copy()
         for k in range(self.ndim):
             if m[k] < 0:
@@ -316,13 +365,14 @@ length: {self.size}"""
             elif m[k] > 0:
                 inds = tuple(np.s_[m[k]:] if _ == k else COLON for _ in range(self.ndim))
                 cpy = _getitem(cpy, inds)
-                cpy.min_index[k] += m[k]
+                cpy.inc_min_index(m[k], axis=k)
             if M[k] > 0:
                 cpy = cpy.fill_zero(M[k], axis=k)
             elif M[k] < 0:
                 inds = tuple(np.s_[:M[k]] if _ == k else COLON for _ in range(self.ndim))
                 cpy = _getitem(cpy, inds)
-                cpy.max_index[k] += M[k]
+                cpy.inc_max_index(M[k], axis=k)
+
         return cpy
 
 
@@ -339,14 +389,13 @@ length: {self.size}"""
     def translate(self, k=1):
         # translation
         cpy = self.copy()
-        cpy.min_index += k
-        cpy.max_index += k
+        cpy.inc_min_index(k)
         return cpy
 
     def refl(self):
         # reflecting
         obj = np.flip(self)
-        min_index, max_index = -self.max_index, -self.min_index
+        min_index, max_index = np.negative(self.max_index), np.negative(self.min_index)
         return self.__class__(array, min_index=min_index, max_index=max_index)
 
     def reflect(self):
@@ -375,6 +424,17 @@ length: {self.size}"""
         # low_filter -> high filter
         return self.star.translate().alt()
 
+    @property
+    def G(self):
+        if not hasattr(self, '_G') or self._G is None:
+            return self.check()
+        else:
+            return self._G
+
+    @G.setter
+    def G(self, v):
+        self._G = v
+    
     def alt(self):
         # alternating
         M = altArray(self.min_index, self.max_index)
@@ -382,30 +442,48 @@ length: {self.size}"""
         obj.min_index, obj.max_index = self.min_index, self.max_index
         return obj
 
+    def kron(self, a):
+        return np.kron(np.asarray(self), a)
 
-    def up_sample(self, k=2):
-        '''up sampling
-        U: z(m:M) => w(2m:2M),  size -> size * 2 - 1'''
+    def up_sample(self, k=2, axis=None):
+        """up sampling
+        U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
+        """
+        if isinstance(k, int):
+            k = tuple(k for _ in range(len(axis)))
         cpy = self.copy()
-        if self.ndim == 1:
-            raise Exception('Should use the method of Ell1d!')
-        elif self.ndim == 2:
-            a = np.zeros((k, k))
-            a[0,0] = 1
-            cpy = np.kron(cpy, a)
-            cpy = np.delete(np.delete(cpy, -1, axis=0), -1, axis=1)
+        if axis is None:
+            a = np.zeros((k for i in range(self.ndim)))
+            a[tuple(0 for i in range(self.ndim))] = 1
+            cpy = self.__class__(cpy.kron(a))
+            for a in range(self.ndim):
+                cpy = np.delete(cpy, -np.arange(1, k[a]), axis=a)
+            cpy.min_index *= k
+            cpy.max_index *= k
+        elif isinstance(axis, int):
+            a = np.zeros((k[i] if i == axis else 1 for i in range(self.ndim)))
+            a[tuple(0 for i in range(self.ndim))] = 1
+            cpy = self.__class__(cpy.kron(a))
+            cpy = np.delete(np.delete(cpy, -np.arange(1, k[a]), axis=0), -1, axis=1)
+            cpy.min_index[axis] *= k
+            cpy.max_index[axis] *= k
+        elif isinstance(axis, tuple):
+            a = np.zeros(tuple(k[i] if i in axis else 1 for i in range(self.ndim)))
+            a[tuple(0 for i in range(self.ndim))] = 1
+            cpy = self.__class__(cpy.kron(a))
+            for a in axis:
+                cpy = np.delete(cpy, -np.arange(1, k[a]), axis=a)
+                cpy.min_index[a] *= k[a]
+                cpy.max_index[a] *= k[a]
         else:
-            raise Exception('only for dim<=2');''
-
-        cpy.min_index *= k
-        cpy.max_index *= k
+            raise TypeError('axis is an instance of int | tuple');
         return cpy
     
-    def project_sample(self, k=2):
+    def project_sample(self, k=2, axis=None):
         """project sampling
         P = UD
         """
-        return self.down_sample(k=k).up_sample(k=k)
+        return self.down_sample(k=k, axis=axis).up_sample(k=k, axis=axis)
 
 
     @property
@@ -452,18 +530,19 @@ length: {self.size}"""
             """)
 
 
-    def expand(self, weight, k=2, level=1):
+    def expand(self, weight, k=2, level=1, axis=None):
         # Uc w
-        return self.up_sample(k) @ weight
+        return self.up_sample(k=k, axis=axis) @ weight
 
-    def reduce(self, weight, k=2, level=1):
+    def reduce(self, weight, k=2, level=1, axis=None):
         # D(cw*)
-        return (self @ weight.H).down_sample(k)
+        #TODO something when axis:int
+        return (self @ weight.H).down_sample(k, axis=axis)
 
     def ezfilter(self, weight, dual_weight=None, k=2):
         if dual_weight is None:
             dual_weight = weight
-        return (self @ weight.H).project_sample(k) @ dual_weight
+        return (self @ weight.H).project_sample(k=k) @ dual_weight
 
 
     def filter(self, weight, dual_weight=None, op=None, k=2, level=1, resize=False):
@@ -509,7 +588,7 @@ length: {self.size}"""
         return low_band, high_bands
 
 
-    def pyramid(self, low_filter, dual_low_filter=None, op=None, k=2, level=2, resize=False):
+    def pyramid(self, low_filter, dual_low_filter=None, op=None, k=2, level=3, resize=False):
         assert level > 0 and isinstance(level, int), '`level` should be an integer >=1!'
         if dual_low_filter is None:
             dual_low_filter = low_filter
@@ -527,8 +606,16 @@ length: {self.size}"""
 
         if op is None:
             rec_laplace = [l.copy() for l in laplace]
-        else:
+        elif isinstance(op, (tuple, list)):
+            if len(op) == level+1:
+                rec_laplace = [l if f is None else f(l) for f, l in zip(op, laplace)]
+            else:
+                raise ValueError(f'the len of `op` should be {level+1}')
+        elif callable(op):
             rec_laplace = list(map(op, laplace))
+        else:
+            raise TypeError('`op` has to be None, function or tuple of functions')
+
         rec_gauss = [l.copy() for l in rec_laplace]
 
         for l in range(level-1, -1, -1):
@@ -543,6 +630,10 @@ length: {self.size}"""
 
     def as_real(self):
         self.hermite = MethodType(lambda obj: obj.refl(), self)
+
+    def dot(self, other):
+        mi, ma = reduced_index(self.index_pair, other.index_pair)
+        return np.sum(self.resize(mi, ma) * other.resize(mi, ma))
 
 
 class AsReal:
@@ -576,52 +667,86 @@ class BaseMultiEll(BaseEll):
             __array_finalize__(self, np.array(obj)) 
             return
         if isinstance(obj, BaseEll):
-            self.min_index = copy.copy(obj.min_index)
-            self.max_index = copy.copy(obj.max_index)
+            self._min_index = obj.min_index
+            self._max_index = obj.max_index
         elif isinstance(obj, np.ndarray):
             if obj.ndim == 1:
-                raise ValueError('The dim of array must >= 2')
+                raise DimError('>=2', 'Note mutli-values are set in the last dim!')
             else:
                 if not hasattr(self, 'min_index'):
                     self.min_index = np.zeros(obj.ndim - 1, dtype=int)
                 if not hasattr(self, 'max_index'):
                     self.max_index = self.min_index + np.array(obj.shape[:-1], dtype=int) - 1
         else:
-            raise TypeError('Type of `obj` should be BaseEll | ndarray | tuple | list')
+            raise TypeError('Type of `obj` should be BaseEll | ndarray | tuple | list!')
+
+    @classmethod
+    def zero(cls, min_index=0, max_index=None, ndim=None, n_values=3):
+        ndim = cls.ndim or ndim or 1
+
+        if max_index is None:
+            if ndim == 1:
+                return cls(np.zeros((1, n_values)), min_index=min_index)
+            else:
+                return cls(np.zeros((1,)*ndim + (n_values,)), min_index=min_index)
+        else:
+            shape = np.subtract(max_index, min_index) + 1
+            if np.isscalar(shape):
+                shape = tuple(shape for _ in range(ndim))
+            return cls(np.zeros(shape+ (n_values,)), min_index=min_index, max_index=max_index)
 
     def refl(self):
         # reflecting
         obj = np.flip(self, axis=range(self.ndim))
-        min_index, max_index = -self.max_index, -self.min_index
+        min_index, max_index = np.negative(self.max_index), np.negative(self.min_index)
         return self.__class__(array, min_index=min_index, max_index=max_index)
 
     def fill_zero(self, n_zeros=1, axis=0):
         size = tuple(abs(n_zeros) if a == axis else k for a, k in enumerate(self.shape))
-        cpy = self.copy()
         if n_zeros > 0:
-            array = np.concatenate([cpy, np.zeros(size+(self.n_values,))], axis=axis)
-            cpy.max_index[axis] += n_zeros
-            return self.__class__(array, min_index=cpy.min_index, max_index=cpy.max_index)
+            array = np.concatenate([self, np.zeros(size+(self.n_values,))], axis=axis)
+            return self.__class__(array, min_index=None, max_index=inc_tuple(self.max_index, n_zeros, axis=axis))
         elif n_zeros < 0:
-            array = np.concatenate([np.zeros(size+(self.n_values,)), cpy], axis=axis)
-            cpy.min_index[axis] += n_zeros
-            return self.__class__(array, min_index=cpy.min_index, max_index=cpy.max_index)
+            array = np.concatenate([np.zeros(size+(self.n_values,)), self], axis=axis)
+            return self.__class__(array, min_index=inc_tuple(self.min_index, n_zeros, axis=axis))
+
+    def dot(self, other):
+        mi, ma = reduced_index(self.index_pair, other.index_pair)
+        return np.sum(self.resize(mi, ma) * other.resize(mi, ma), axis=np.arange(self.ndim))
+
+    def conv_1d(self, other, axis=0):
+        if isinstance(other, Ell1d):
+            obj = np.apply_along_axis(np.convolve, axis, np.asarray(self), np.asarray(other))
+        else:
+            raise TypeError('`other` should be an instance of Ell1d')
+        min_index = inc_tuple(self.min_index, min_index, axis=axis)
+        max_index = inc_tuple(self.max_index, max_index, axis=axis)
+        return self.__class__(obj, min_index=min_index, max_index=max_index)
+
+    def kron(self, a):
+        a = a.reshape(a.shape+(1,))
+        return np.kron(np.asarray(self), a)
 
 
 class Ellnd(BaseEll):
     def __new__(cls, array, min_index=0, max_index=None, *args, **kwargs):
 
         obj = np.asarray(array).view(cls)
-        if isinstance(min_index, int):
-            obj.min_index = np.array((min_index,)*obj.ndim)
+        if isinstance(min_index, (int, Iterable)):
+            if max_index is None:
+                obj.min_index = min_index
+            elif isinstance(max_index, (int, Iterable)):
+                obj._min_index = min_index if np.isscalar(min_index) else tuple(min_index)
+                obj._max_index = max_index if np.isscalar(max_index) else tuple(max_index)
+            else:
+                raise TypeError('type of `max_index` should be int or iterable object.')
+        elif min_index is None:
+            if max_index is None:
+                raise IndexUnavailableError()
+            else:
+                obj.max_index = max_index
         else:
-            obj.min_index = np.array(min_index)
-        if max_index is None:
-            obj.max_index = min_index + np.array(obj.shape) - 1
-        else:
-            obj.max_index = max_index
-            shape = obj.max_index - obj.min_index + 1
-            obj = obj.resize(obj.min_index, max_index)
+            raise TypeError('type of `min_index` should be int or iterable object.')
         return obj
 
     def __getitem__(self, ind):
@@ -641,14 +766,14 @@ class Ellnd(BaseEll):
                 start = None if s.start is None else s.start-self.min_index[k]
                 stop = None if s.stop is None else s.stop-self.min_index[k]
                 ss.append(slice(start, stop, s.step))
-                if s.start:
-                    min_index.append(s.start)
-                else:
+                if s.start is None:
                     min_index.append(self.min_index[k])
-                if s.stop:
-                    max_index.append(s.stop)
                 else:
+                    min_index.append(s.start)
+                if s.stop is None:
                     max_index.append(self.max_index[k])
+                else:
+                    max_index.append(s.stop)
             else:
                 raise TypeError(f'Each element in `ind` should be an instance of int or slice, but {s} not.')
         array = _getitem(self, tuple(ss))
@@ -659,14 +784,15 @@ class MultiEllnd(Ellnd, BaseMultiEll):
     pass
 
 class Ell2d(Ellnd):
-    
+    ndim = 2
+
     @classmethod
     def from_image(cls, image, min_index=np.array([0,0]), max_index=None, chennal=0):
         if chennal is None:
             array = np.asarray(image, dtype=np.float64)
         else:
             array = np.asarray(image, dtype=np.float64)[:, :, chennal]
-        assert array.ndim == 2, 'Make sure the array representing the image has 2 dim.'
+        assert DimError(2, details='Make sure the array representing the image has 2 dim.')
         if max_index is None:
             max_index = min_index + np.array(array.shape) - 1
         return cls(array, min_index=min_index, max_index=max_index)
@@ -688,40 +814,31 @@ class Ell2d(Ellnd):
 
     def conv_2d(self, other):
         obj = signal.convolve2d(self, other)
-        min_index, max_index = self.min_index+other.min_index, self.max_index+other.max_index
+        min_index, max_index = np.add(self.min_index, other.min_index), np.add(self.max_index, other.max_index)
         return self.__class__(obj, min_index=min_index, max_index=max_index)
 
     def conv_tensor(self, other1, other2=None):
         if other2 is None:
             other2 = other1
-            min_index, max_index = other1.min_index, other1.max_index
+            min_index = other1.min_index
         else:
-            min_index = np.array([other1.min_index, other2.min_index])
-            max_index = np.array([other1.max_index, other2.max_index])
+            min_index = (other1.min_index, other2.min_index)
         obj = np.apply_along_axis(np.convolve, 0, np.asarray(self), np.asarray(other1))
         array = np.apply_along_axis(np.convolve, 1, np.asarray(obj), np.asarray(other2))
-        min_index, max_index = self.min_index + min_index, self.max_index + max_index
-        return self.__class__(array, min_index=min_index, max_index=max_index)
-
-    def conv_1d(self, other, axis=0):
-        if isinstance(other, Ell1d):
-            obj = np.apply_along_axis(np.convolve, axis, np.asarray(self), np.asarray(other))
-        else:
-            raise TypeError('`other` should be an instance of Ell1d')
-        min_index, max_index = self.min_index, self.max_index
-        min_index[axis], max_index[axis] = self.min_index[axis] + min_index, self.max_index[axis] + max_index
-        return self.__class__(obj, min_index=min_index, max_index=max_index)
+        min_index = np.add(self.min_index, min_index)
+        return self.__class__(array, min_index=min_index)
 
 
     def refl(self):
         # reflecting
         array = _getitem(self, (np.s_[::-1], np.s_[::-1]))
-        return self.__class__(array, min_index=-self.max_index, max_index=-self.min_index)
+        return self.__class__(array, min_index=np.negative(self.max_index), max_index=np.negative(self.min_index))
 
-    def up_sample(self, k=2, axis=(0, 1)):
+    def up_sample(self, k=2, axis=None):
         '''up sampling
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
         '''
+
         if axis is None or axis == (0, 1):
             if isinstance(k, int):
                 k = (k, k)
@@ -741,31 +858,36 @@ class Ell2d(Ellnd):
         else:
             raise ValueError("Value of `axis` is invalid!")
 
-        return self.__class__(array, min_index=self.min_index * k, max_index=self.max_index * k)
+        return self.__class__(array, min_index=np.multiply(self.min_index, k), max_index=np.multiply(self.max_index, k))
 
-    def down_sample(self, k=2):
+    def down_sample(self, k=2, axis=None):
         """down sampling
         D: z(m:M) => w([m/2]:[M/2]), size -> [size/2]
         """
         if isinstance(k, int):
             k = (k, k)
-        d10, r0 = divround(self.min_index[0], k[0])
-        d11, r1 = divround(self.min_index[1], k[1])
-        d20, _ = divround(self.max_index[0], k[0])
-        d21, _ = divround(self.max_index[1], k[1])
-        array = _getitem(self, (np.s_[r0::k[0]], np.s_[r1::k[1]]))
-        min_index = np.array([d10, d11])
-        max_index = np.array([d20, d21])
+        if axis is None or axis == (0,1):
+            d10, r0 = divround(self.min_index[0], k[0])
+            d20, _ = divround(self.max_index[0], k[0])
+            d11, r1 = divround(self.min_index[1], k[1])
+            d21, _ = divround(self.max_index[1], k[1])
+            array = _getitem(self, (np.s_[r0::k[0]], np.s_[r1::k[1]]))
+            min_index = (d10, d11)
+            max_index = (d20, d21)
+        elif axis == 0:
+            d10, r0 = divround(self.min_index[0], k[0])
+            d20, _ = divround(self.max_index[0], k[0])
+            array = _getitem(self, (np.s_[r0::k[0]], COLON))
+            min_index = (d10, self.min_index[1])
+            max_index = (d20, self.max_index[1])
+        elif axis == 1:
+            d11, r1 = divround(self.min_index[1], k[1])
+            d21, _ = divround(self.max_index[1], k[1])
+            array = _getitem(self, (COLON, np.s_[r1::k[1]]))
+            min_index = (self.min_index[0], d11)
+            max_index = (self.max_index[0], d21)
         return self.__class__(array, min_index=min_index, max_index=max_index)
 
-    def expand(self, weight, k=2):
-        # Uc w
-        return self.up_sample(k) @ weight
-
-
-    def reduce(self, weight, k=2):
-        # D(cw*)
-        return (self @ weight.H).down_sample(k)
 
     def plot(self, irange=None, scale=1, axes=None, *args, **kwargs):
         if irange is None:
@@ -782,22 +904,48 @@ class Ell2d(Ellnd):
         return np.arange(self.min_index[0], self.max_index[0]+1), np.arange(self.min_index[1], self.max_index[1]+1)
 
 
-class MultiEll2d(Ell2d, BaseMultiEll):
-    def up_sample(self, k=2):
-        '''up sampling
+class MultiEll2d(BaseMultiEll, Ell2d):
+    ndim = 2
+    
+
+    def up_sample(self, k=2, axis=None):
+        """up sampling
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
-        '''
-        if isinstance(k, int):
-            k = (k, k)
-        a = np.zeros(k+(1,))
-        a[0,0] = 1
-        array = np.kron(np.asarray(self), a)
-        array = np.delete(np.delete(array, -np.arange(1, k[0]), axis=0), -np.arange(1, k[1]), axis=1)
-        return self.__class__(array, min_index=self.min_index * k, max_index=self.max_index * k)
+        """
+
+        cpy = self.copy()
+        if isinstance(axis, int):
+            if axis == 0:
+                a = np.zeros((k, 1))
+                a[0, 0] = 1
+            else:
+                a = np.zeros(k)
+                a[0] = 1
+            cpy = np.delete(cpy.kron(a), -np.arange(1, k), axis=axis)
+            cpy.min_index[axis] *= k
+            cpy.max_index[axis] *= k
+        elif isinstance(axis, tuple):
+            if len(axis)==1:
+                return self.up_sample(k=k, axis=axis[0])
+            elif len(axis) == 2:
+                return self.up_sample(self, k=k, axis=None)
+            else:
+                raise ValueError('len of `axis` has to be <=2!')
+        elif axis is None:
+            if isinstance(k, int):
+                k = (k,k)
+            a = np.zeros(k+(1,))
+            a[0, 0, 0] = 1
+            cpy = self.__class__(np.kron(np.asarray(self), a), min_index=np.multiply(self.min_index, k), max_index=np.multiply(self.max_index, k))
+            cpy = np.delete(np.delete(cpy, -np.arange(1, k[0]), axis=0), -np.arange(1, k[1]), axis=1)
+        else:
+            raise TypeError('`axis` is an instance of int | tuple');
+
+        return cpy
 
     def conv_2d(self, other):
         obj = np.dstack([signal.convolve2d(self[:,:,k], other) for k in range(self.n_values)])
-        min_index, max_index = self.min_index+other.min_index, self.max_index+other.max_index
+        min_index, max_index = np.add(self.min_index, other.min_index), np.add(self.max_index, other.max_index)
         return self.__class__(obj, min_index=min_index, max_index=max_index)
 
 
@@ -807,14 +955,27 @@ class Ell1d(BaseEll):
     Extends:
         BaseEll
     """
+
+    ndim = 1
+
     def __new__(cls, array, min_index=0, max_index=None, *args, **kwargs):
 
         obj = np.asarray(array).view(cls)
-        obj.min_index = min_index
-        if max_index is None:
-            obj.max_index = min_index + obj.length - 1
+        if obj.ndim !=1:
+            raise DimError(details=f"The dim of the `array` {obj} that you provide is {obj.ndim}")
+        if np.isscalar(min_index):
+            if max_index is None:
+                obj.min_index = min_index
+            else:
+                obj._min_index = min_index
+                obj._max_index = max_index
+        elif min_index is None:
+            if max_index is None:
+                raise IndexUnavailableError()
+            else:
+                obj.max_index = max_index
         else:
-            obj.max_index = max_index
+            raise TypeError('`max_index` should be an instance of int.')
         return obj
 
     def __getitem__(self, ind):
@@ -826,9 +987,9 @@ class Ell1d(BaseEll):
             stop = None if ind.stop is None else ind.stop-self.min_index
             obj = _getitem(self, slice(start, stop, ind.step))
             if ind.start:
-                obj.min_index=ind.start-self.min_index
-            if ind.stop:
-                obj.max_index=ind.stop-self.min_index
+                obj.min_index = ind.start
+            else:
+                obj.min_index = self.min_index
             return obj
         elif isinstance(ind, list):
             raise NotImplementedError
@@ -841,6 +1002,33 @@ class Ell1d(BaseEll):
         else:
             return super().__format__(spec=spec)
 
+    def __eq__(self, other):
+        if np.isscalar(other):
+            np.all(super().__eq__(other))
+        elif isinstance(other, BaseEll):
+            return np.all(_equal(np.asarray(self), np.asarray(other))) and self.min_index == other.min_index and self.max_index == other.max_index
+        else:
+            raise TypeError("type of `other` is invalid!")
+
+    @property
+    def min_index(self):
+        return self._min_index
+
+
+    @min_index.setter
+    def min_index(self, v):
+        self._min_index = v
+        self._max_index = v + self.length - 1
+
+    @property
+    def max_index(self):
+        return self._max_index
+
+    @max_index.setter
+    def max_index(self, v):
+        self._max_index = v
+        self._min_index = v - self.length + 1
+
 
     @property
     def irange(self):
@@ -851,10 +1039,18 @@ class Ell1d(BaseEll):
         return (1-self.max_index, 1-self.min_index)
 
 
-    def resize(self, min_index, max_index):
+    def resize(self, min_index=None, max_index=None):
         # make self.min_index==min_index, self.max_index==max_index
-        if min_index>self.max_index or max_index<self.min_index:
-            return self.zero()
+
+        if min_index is None:
+            min_index = self.min_index
+            if max_index is None:
+                return self.copy()
+        elif max_index is None:
+            max_index = self.max_index
+        else:
+            if np.all(min_index>self.max_index) or np.all(max_index<self.min_index):
+                return self.zero()
 
         m = min_index - self.min_index
         M = max_index - self.max_index
@@ -868,7 +1064,7 @@ class Ell1d(BaseEll):
             cpy = cpy.fill_zero(M)
         elif M < 0:
             cpy = _getitem(cpy, slice(None, M))
-        cpy.min_index, cpy.max_index = min_index, max_index
+        cpy.min_index = min_index
         return cpy
 
     def commonInd(self, *others):
@@ -881,12 +1077,10 @@ class Ell1d(BaseEll):
         if n_zeros > 0:
             array = np.hstack([self, np.zeros(n_zeros)])
             min_index = self.min_index
-            max_index = self.max_index + n_zeros
         elif n_zeros < 0:
             array = np.hstack([np.zeros(-n_zeros), self])
             min_index = self.min_index + n_zeros
-            max_index = self.max_index
-        return self.__class__(array, min_index=min_index, max_index=max_index)
+        return self.__class__(array, min_index=min_index)
 
     def __matmul__(self, other):
         # convolution: size -> size1 + size2 - 1
@@ -907,7 +1101,7 @@ class Ell1d(BaseEll):
         # reflecting
         return self.__class__(self[::-1], min_index=-self.max_index, max_index=-self.min_index)
 
-    def down_sample(self, k=2):
+    def down_sample(self, k=2, axis=None):
         """down sampling
         D: z(m:M) => w([m/2]:[M/2]), size -> [size/2]
         
@@ -916,12 +1110,12 @@ class Ell1d(BaseEll):
         """
         d1, r = divround(self.min_index, k)
         d2, _ = divround(self.max_index, k)
-        obj = _getitem(self.copy(), np.s_[r::k])
-        obj.min_index = d1
-        obj.max_index = d2
+        obj = _getitem(self, np.s_[r::k])
+        obj._min_index = d1
+        obj._max_index = d2
         return obj
 
-    def up_sample(self, k=2):
+    def up_sample(self, k=2, axis=None):
         """up sampling, as an inverse of down_sample
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
 
@@ -956,7 +1150,7 @@ class Ell1d(BaseEll):
 
     @property
     def length(self):
-        return self.size
+        return self.shape[0]
 
     def tensor(self, other=None):
         if other is None:

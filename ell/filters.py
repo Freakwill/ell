@@ -1,17 +1,20 @@
 from .ells import *
 
 class Filter(Ell1d):
+    # only support 1d filter currently
 
     def __new__(cls, array, name="[z]", *args, **kwargs):
         obj = super().__new__(cls, array, *args, **kwargs)
         obj.name = name
+        obj._G = None
         return obj
 
     @staticmethod
     def from_name(s):
         import pywt
         if s.startswith("db"):
-            return Filter(array=pywt.Wavelet(s).filter_bank[0][::-1], name=s)
+            f = Filter(array=pywt.Wavelet(s).filter_bank[0][::-1], name=s)
+            return f
         else:
             raise ValueError(f'`s` has an invalid value.')
 
@@ -25,8 +28,7 @@ class Filter(Ell1d):
     def __format__(self, spec=None):
         if spec in {'full', 'f'}:
             return f"""Name: {self.name}
-{super().__format__(spec)}
-"""
+{super().__format__(spec)}"""
         else:
             return f'{self.name}: {super().__format__(spec)}'
 

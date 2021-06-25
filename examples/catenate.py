@@ -34,13 +34,12 @@ def key(L):
     def _key(d):
         k = d.shape[1] // 2
         dd = np.asarray(d)
-        # dd[:,k-100:k] = 0.1*dd[:,k-100:k]+0.9*np.ndarray.__getitem__(L, np.s_[:,k-100:k])
+        dd[:,k-20:k+20] = 0.5*dd[:, k-20:k+20]+0.5*np.ndarray.__getitem__(L, np.s_[:, k-20:k+20])
         dd[:,k:] = np.ndarray.__getitem__(L, np.s_[:,k:])
-        dd[:,k-1:k+2] = dd[:,k-1:k+2] * (np.abs(dd[:,k-1:k+2])>120)
+        dd[:,k-1:k+2] = dd[:,k-1:k+2] * (np.abs(dd[:,k-1:k+2])>150)
         d = d.__class__(dd, min_index=d.min_index, max_index=d.max_index)
-        return d.truncate(10)
+        return d.truncate(50)
     return _key
-
 
 _, _, _, gauss = a.pyramid(_filter, level=level, op=tuple(map(key, Lb)), resize=True)
 

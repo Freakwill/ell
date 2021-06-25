@@ -54,13 +54,11 @@ def draw(tree, fig):
 
 
 level = 2
-_filter = Filter.from_name('db5')
-
+_filter = Filter.from_name('db6')
 a = ImageRGB.open('lenna.jpg')
 t = a.mallat_tensor(_filter, level=level)
 
-print(t)
-
+# mallat_rec(t, _filter).to_image().show()
 
 import matplotlib.pyplot as plt
 fig = plt.figure(constrained_layout=True)

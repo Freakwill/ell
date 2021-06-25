@@ -77,3 +77,32 @@ def common_index(*index_pairs):
     mi, ma = tuple(zip(*index_pairs))
     return np.min(mi, axis=0), np.max(ma, axis=0)
 
+def reduced_index(*index_pairs):
+    # common index, the maximal range contained in all ranges
+    mi, ma = tuple(zip(*index_pairs))
+    return np.max(mi, axis=0), np.min(ma, axis=0)
+
+def replace_tuple(t, v, axis=None):
+    if axis is None:
+        return v
+    else:
+        a = np.array(t)
+        if isinstance(axis, int):
+            a[axis]=v
+        else:
+            a[list(axis)]=v
+        return tuple(a)
+
+def inc_tuple(t, v, axis=None):
+    if axis is None:
+        return np.add(t, v)
+    else:
+        a = np.array(t)
+        if isinstance(axis, int):
+            a[axis]+=v
+        else:
+            a[list(axis)]+=v
+        return list(a)
+
+def is_index(i):
+    return isinstance(i, (int, np.int64))

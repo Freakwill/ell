@@ -4,7 +4,7 @@ from ell import *
 import numpy as np
 from PIL import Image
 
-def pyramid_demo(c, level=3, q=16):
+def pyramid1_demo(c, level=3, q=16):
 
     import matplotlib.pyplot as plt
 
@@ -24,7 +24,7 @@ def pyramid_demo(c, level=3, q=16):
     for j, name in enumerate(names):
         ax[0, j].set_title(name)
         for i, c in enumerate(pyramid[j]):
-            ax[i,j].imshow(np.asarray(c, dtype='uint8'), cmap='gray')
+            ax[i,j].imshow(c.to_image(), cmap='gray')
 
     plt.show()
 
@@ -48,8 +48,8 @@ def pyramid_demo(c, level=3, q=128):
     for j, name in enumerate(names):
         ax[0, j].set_title(name)
         for i, c in enumerate(pyramid[j]):
-            if j in {1,2} and i<level: c = c.exposure(0.05)
-            else: c = c.minmaxmap()
+            if (j != 1 and j != 2) or i==level:
+                c = c.minmaxmap()
             ax[i,j].imshow(c.to_image(resize=True))
 
     plt.show()

@@ -1,26 +1,51 @@
 from ell import *
+import numpy as np
 
+_filter = Filter.from_name('db2')
 
 def check(a, mi, ma, shape):
     return np.all(a.min_index == mi) and np.all(a.max_index == ma) and np.all(np.equal(a.shape, shape))
 
 
 def test_copy():
-    b = d_filter
+    b = Ell1d([0,1,2,3])
+    assert hasattr(b, 'min_index')
     a = b.copy()
+    assert hasattr(a, 'min_index')
+    b = _filter
+    assert hasattr(b, 'min_index')
+    a = b.copy()
+    assert hasattr(a, 'min_index')
     a = a.resize(min_index=-2, max_index=2)
     assert a.min_index == -2 and a.max_index == 2 and b.min_index ==0 and b.max_index == 3
 
 def test_copy2d():
     a = Ell1d([1,2,3,4]).tensor()
     cpy = a.copy()
-    c = cpy @ d_filter
+    c = cpy @ _filter
     assert np.all(np.equal(a.min_index, 0)) and np.all(np.equal(a.max_index, 3))
 
-def test_sample():
-    b = d_filter.tensor()
-    a=b.up_sample()
-    assert np.all(a.min_index == b.min_index*2) and np.all(a.max_index == b.max_index*2)
+def test_up_sample():
+    b = _filter.tensor()
+    a = b.up_sample()
+    assert np.all(a.shape==np.array(b.shape) *2-1)
+    assert np.all(a.min_index == np.multiply(b.min_index, 2)) and np.all(a.max_index == np.multiply(b.max_index, 2))
+
+def test_up_sample_2d():
+    b = MultiEll2d(np.ones((4,5,3)))
+    a = b.up_sample(k=2)
+    assert np.all(a.shape==np.array(b.shape) *2-1)
+    assert np.all(a.min_index == np.multiply(b.min_index, 2)) and np.all(a.max_index == np.multiply(b.max_index, 2))
+
+def test_down_sample_2d():
+    b = MultiEll2d(np.ones((4,5,3)))
+    a = b.down_sample(k=2, axis=0).down_sample(k=2, axis=1)
+    assert np.all(a.min_index == np.floor(np.divide(b.min_index, 2)))
+
+    a = b.down_sample(k=2, axis=0)
+    assert a.min_index[0] == b.min_index[0] // 2
+    a = a.down_sample(k=2, axis=1)
+    assert a.min_index[1] == b.min_index[1] // 2
 
 
 def test_alt():
@@ -41,20 +66,11 @@ def test_sub():
     a = Ell1d([1,2,3,4])
     b = Ell1d([2,3,4,5,5,6], min_index=-3)
     c = Ell1d([-2.0, -3.0, -4.0, -4.0, -3.0, -3.0, 4.0], min_index=-3)
-    assert a-b==c
+    assert (a-b == c)
     a = 2
     b = Ell1d([2,3,4,5,5,6], min_index=-3)
     c = Ell1d([0, -1, -2, -3, -3, -4], min_index=-3)
     assert a-b==c
-
-def test_common_index():
-
-    a = Ell1d([1,2,3,4])
-    b = Ell1d([2,3,4,5,5,6], min_index=-3)
-    a = a.tensor()
-    b = b.tensor()
-    mi, ma = common_index(a.index_pair, b.index_pair)
-    assert np.all(np.equal(mi, b.min_index)) and np.all(np.equal(ma, a.max_index))
 
 
 def test_fillzeros():
@@ -65,6 +81,44 @@ def test_fillzeros():
 
 
 def test_resize():
+    a = Ell1d([1,2,3,4,5,6])
+    a = a.resize(-3,3)
+    assert check(a, -3,3,7)
+
     a = Ell1d([1,2,3,4,5,6]).tensor()
+    assert check(a, (0,0), (5,5), (6,6))
     a = a.resize(np.array([-3,-3]), np.array([3,3]))
     assert check(a, (-3,-3), (3,3), (7,7))
+
+
+def test_conv():
+    a = Ell1d([1,2,3,4,5,6])
+    b = Ell1d([1,2,3,4,5,6], min_index=-2)
+    c = a @ b
+    assert c.min_index==-2 and c.max_index==8
+
+def test_conv_2d():
+    a = Ell1d([1,2,3,4,5,6]).tensor()
+    b = Ell1d([1,2,3,4,5,6]).refl().tensor()
+    c = a @ b
+    assert c.min_index==(-5,-5) and c.max_index==(5,5)
+
+def test_sub_2d():
+    a = Ell2d(np.ones((5,4)))
+    b = Ell2d(np.ones((5,4)), min_index=-2)
+    c = b-a
+    assert c.min_index == (-2,-2) and c.max_index == (4, 3)
+
+def test_sub_m2d():
+    a = MultiEll2d(np.ones((5,4,3)))
+    b = MultiEll2d(np.ones((5,4,3)), min_index=-2)
+    c = b-a
+    assert c.min_index == (-2,-2) and c.max_index == (4, 3)
+
+def test_resize_m2d():
+    a = MultiEll2d(np.ones((5,4,3)), min_index=-2)
+    c = a.resize(max_index=(4,3))
+    assert c.min_index == (-2,-2) and c.max_index == (4, 3)
+
+test_resize_m2d()
+
