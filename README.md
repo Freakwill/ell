@@ -4,23 +4,29 @@
 
 The space of sequences, and the operators on it.
 
-
-
 $\ell$ is latex code of l, offen used as the space of sequences.
 
+And ell take the symbol as its logo:
 
-
-logo: 
+ ![](src/ell-logo.png)
 
 ## Concepts
 
-A sequence is an array with start-index and end-index,
+A sequence is an array (`numpy.ndarray`) with start-index and end-index,
 
 When adding or other operator acting on two sequences, you have two fit their indexes, that has been done by a decorator silently.
 
 
 
 the space of sequences is a type of normal (Banach) space, also a type of *-normal (Banach) algebra
+
+
+
+## Requirements
+
+mainly and heavily requires `numpy`
+
+for image classes, it also needs `pillow`
 
 ## Main classes
 
@@ -96,8 +102,8 @@ There are some experiements in `examples/` most of whom are related to wavelets.
 ## TO-DO
 
 - [ ] define filter banks
-- [ ] design a logo
-- [ ] index should be a tuple in feature
+- [x] design a logo
+- [x] index should be a tuple in feature
 - [ ] periodic sequences.
 - [ ] audio process
 
