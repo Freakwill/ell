@@ -12,7 +12,7 @@ And ell take the symbol as its logo:
 
 ## Concepts
 
-A sequence is an array (`numpy.ndarray`) with start-index and end-index,
+A sequence is an array (`numpy.ndarray`) with start-index and end-index. I wll call it an *ell* in the context.
 
 When adding or other operator acting on two sequences, you have two fit their indexes, that has been done by a decorator silently.
 
@@ -22,11 +22,21 @@ the space of sequences is a type of normal (Banach) space, also a type of *-norm
 
 
 
+## Motivations
+
+to implement the algorithms of wavelet analysis.
+
 ## Requirements
 
 mainly and heavily requires `numpy`
 
-for image classes, it also needs `pillow`
+for image classes, it also needs [pillow](https://pillow.readthedocs.io/en/stable/)
+
+
+
+## Download
+
+Plz download it from github. It is not loaded up to pypi currently.
 
 ## Main classes
 
@@ -38,7 +48,7 @@ for image classes, it also needs `pillow`
 
 `Ellnd`: higher-dim sequances
 
-`BaseMultiEll`: multi-values version of `BaseEll`
+`BaseMultiEll`: multi-values version of `BaseEll`, similarly it has following two subclasses
 
 `MultiEll1d, MultiEll2d`: sequances with multi-values, such an image which is an instance of `MultiEll2d` with 3 values.
 
@@ -64,6 +74,8 @@ Before test the examples, plz import classes with`from ell import *`
 
 #### basic operation
 
+Ell is a subclass of numpy.ndarray, so it inherits all methods of ndarray. Functions defined on arrayes can act on ells and return Ell objects in most case.
+
 ```python
 a = Ell1d([1,2,3,4])
 b = Ell1d([2,3,4,5,5,6], min_index=-3)
@@ -73,6 +85,42 @@ assert a-b==c
 # tensor prod of Ell1d
 assert isinstance(a.tensor(), Ell2d)
 ```
+
+
+
+### draw wavelets
+
+Run following script to draw in scaling function and wavelet wrt the filter.
+
+```python
+#!/usr/bin/env python3
+
+"""Draw the graph of Daubeches' scaling function and wavelet.
+"""
+
+from ell import *
+
+d_filter = Filter.from_name('db2')
+
+phi, psi, t1, t2 = d_filter.scaling_wavelet(level=12)
+
+def plot(ax, fx, xlim, *args, **kwargs):
+    L = len(fx)
+    ax.plot(np.linspace(*xlim, L), fx, *args, **kwargs)
+
+
+import matplotlib.pyplot as plt
+fig = plt.figure()
+fig.suptitle('Scaling function and wavelet')
+ax = fig.subplots(2)
+plot(ax[0], phi, t1)
+ax[0].set_title(r'$\phi$')
+plot(ax[1], psi, t2)
+ax[1].set_title(r'$\psi$')
+plt.show()
+```
+
+![](src/daubechies-wavelet-fourier.png)
 
 
 
@@ -86,11 +134,19 @@ im.to_image().show()
 
 # filtering by wavelets
 im = ImageRGB.open('lenna.jpg')
+
+# reducing with db2 wavelet
 im = (im @ Filter.from_name('db2').H).D
 # implement of Hx = D(x*h~)
-# im = im.reduce(Filter.from_name('db2'))
-
+# <==> im = im.reduce(Filter.from_name('db2'))
 im.to_image().show()
+
+# expanding
+im = im.U @ Filter.from_name('db2')
+# <==> im = im.expand(Filter.from_name('db2'))
+im.to_image().show()
+
+# to execute the two steps <==> call im = im.ezfilter(Filter.from_name('db2'))
 ```
 
 

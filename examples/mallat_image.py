@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
+# Mallat algorithm
+
 from ell import *
 import numpy as np
 from ell.utils import max0
 
 
 def mallat_rec(tree, dual_filter, level=0):
+    # mallat rec.
     if tree.depth() == 1:
         n1 = tree.get_node(level+1)
         n11, n12, n13 = (tree.get_node((level+1, k)) for k in range(1,4))
@@ -23,6 +26,7 @@ def mallat_rec(tree, dual_filter, level=0):
 
 
 def draw(tree, fig):
+    # draw the tree type of coefs of mallat decomp.
     import matplotlib.gridspec as gridspec
     level = tree._level
     gs = gridspec.GridSpec(2**level, 2**level, figure=fig)
