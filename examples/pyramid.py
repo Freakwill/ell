@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 
 def pyramid1_demo(c, level=3, q=16):
-    # in grey mode
+    # in gray mode
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(level+1, 4)

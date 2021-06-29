@@ -1,7 +1,5 @@
 # Ell
 
-
-
 The space of sequences, and the operators on it.
 
 $\ell$ is latex code of l, offen used as the space of sequences.
@@ -24,7 +22,7 @@ the space of sequences is a type of normal (Banach) space, also a type of *-norm
 
 ## Motivations
 
-to implement the algorithms of wavelet analysis.
+To implement the algorithms in wavelet analysis.
 
 ## Requirements
 
@@ -36,7 +34,7 @@ for image classes, it also needs  [pillow](https://pillow.readthedocs.io/en/stab
 
 ## Download
 
-Plz download it from github. It is not loaded up to pypi currently.
+Plz download it from *github*. It is not loaded up to *pypi* currently.
 
 ## Main classes
 
@@ -64,7 +62,7 @@ Plz download it from github. It is not loaded up to pypi currently.
 
 `Filter < Ell1d`
 
-`ImageRGB < MultiEll2d`
+`ImageRGB, ImageGray < MultiEll2d`
 
 
 
@@ -103,6 +101,25 @@ im = ImageRGB.open('src/lenna.jpg')
 
 (im-im @ gm).to_image().show()
 
+```
+
+convolution with Ell1d
+
+```python
+"""Sobel edge detection
+"""
+
+from ell import *
+
+s1 = Ell1d([-1,-2,-1])
+s2 = Ell1d([1,0,-1])
+
+im = ImageGray.open('lenna.jpg')
+s_im = im.conv1d(s1, axis=0).conv1d(s2, axis=1)
+
+# <=> s_im = im @ s1.tensor(s2) but might more slow
+
+(s_im).to_image().show()
 ```
 
 
@@ -155,13 +172,18 @@ im.to_image().show()
 im = ImageRGB.open('lenna.jpg')
 
 # reducing with db2 wavelet
-im = (im @ Filter.from_name('db2').H).D
+im_low = (im @ Filter.from_name('db2').H).D
 # implement of Hx = D(x*h~)
 # <==> im = im.reduce(Filter.from_name('db2'))
-im.to_image().show()
+im_low.to_image().show()
+
+im_high = (im @ Filter.from_name('db2').g.H).D
+# implement of Hx = D(x*g~) where g is the corresponding high-pass filter
+# <==> im = im.reduce(Filter.from_name('db2'))
+im_high.to_image().show()
 
 # expanding
-im = im.U @ Filter.from_name('db2')
+im = im_low.U @ Filter.from_name('db2')
 # <==> im = im.expand(Filter.from_name('db2'))
 im.to_image().show()
 
@@ -174,7 +196,7 @@ im.to_image().show()
 
 There are some experiements in `examples/` most of whom are related to wavelets. Our ambition is to replace [pywavlets](http://pywavelets.readthedocs.io/en/latest/)
 
-`pyramid.py` is recommanded to run to have a look at pyramid algorithm which is one of the goals to developing Ell.
+`pyramid.py` is recommanded to run to have a view with pyramid algorithm which is one of the goals to developing Ell.
 
 ## TO-DO
 
