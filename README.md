@@ -6,7 +6,7 @@ The space of sequences, and the operators on it.
 
 $\ell$ is latex code of l, offen used as the space of sequences.
 
-And ell take the symbol as its logo:
+And Ell takes the symbol as its logo:
 
  ![](src/ell-logo.png)
 
@@ -30,7 +30,7 @@ to implement the algorithms of wavelet analysis.
 
 mainly and heavily requires `numpy`
 
-for image classes, it also needs [pillow](https://pillow.readthedocs.io/en/stable/)
+for image classes, it also needs  [pillow](https://pillow.readthedocs.io/en/stable/)
 
 
 
@@ -84,6 +84,25 @@ assert a-b==c
 
 # tensor prod of Ell1d
 assert isinstance(a.tensor(), Ell2d)
+```
+
+
+
+Only difference is that in Ell, we use `@` to implement convolution, as in following example.
+
+```python
+from ell import *
+
+gm = 1/ 159 * Ell2d([[2, 4, 5, 4, 2],
+[4, 9, 12, 9, 4],
+[5, 12, 15, 12, 5],
+[4, 9, 12, 9, 4],
+[2, 4, 5, 4, 2]])  # gaussian mask
+
+im = ImageRGB.open('src/lenna.jpg')
+
+(im-im @ gm).to_image().show()
+
 ```
 
 
@@ -154,6 +173,8 @@ im.to_image().show()
 ### Experiments
 
 There are some experiements in `examples/` most of whom are related to wavelets. Our ambition is to replace [pywavlets](http://pywavelets.readthedocs.io/en/latest/)
+
+`pyramid.py` is recommanded to run to have a look at pyramid algorithm which is one of the goals to developing Ell.
 
 ## TO-DO
 
