@@ -120,5 +120,11 @@ def test_resize_m2d():
     c = a.resize(max_index=(4,3))
     assert c.min_index == (-2,-2) and c.max_index == (4, 3)
 
-test_resize_m2d()
+def test_dot():
+    a = MultiEll2d(np.ones((5,4,3)), min_index=-2)
+    assert a.dot(a) == 60
+    a = Ell1d(np.ones(5), min_index=-2)
+    assert a.dot(a) == 5
+
+test_dot()
 

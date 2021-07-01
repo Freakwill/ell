@@ -1,7 +1,6 @@
 from ell import *
 import numpy as np
 
-
 def test_index():
     o=Ell1d.zero(min_index=-10, max_index=10)
     o.set_min_index(-5)
@@ -9,6 +8,10 @@ def test_index():
     o=Ell1d.zero(min_index=-10, max_index=10)
     o.inc_min_index(5)
     assert o.min_index == -5 and o.max_index == 15
+    o=Ell2d.zero(min_index=-10, max_index=10)
+    o.inc_min_index(5)
+    print(o.shape)
+    assert o.min_index == (-5, -5) and o.max_index == (15, 15)
 
 def test_index_2d():
     o=Ell1d.zero(min_index=-10, max_index=10).tensor()
@@ -40,4 +43,4 @@ def test_common_index():
     assert np.all(np.equal(mi, b.min_index)) and np.all(np.equal(ma, a.max_index))
 
 
-test_common_index()
+test_index()
