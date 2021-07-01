@@ -50,14 +50,37 @@ _equal = np.equal
 def fit(f):
     # decorator for operators of Ell objects
     def _f(obj, other):
-        if np.isscalar(other):
-            pass
-        elif isinstance(other, BaseEll):
+        if isinstance(other, BaseEll):
             mi, ma = common_index(obj.index_pair, other.index_pair)
             obj = obj.resize(mi, ma)
             other = other.resize(mi, ma)
         return f(obj, other)
     return _f
+
+def fit2(f):
+    def _f(obj, other):
+        if isinstance(other, BaseEll):
+            mi, ma = shared_index(obj.index_pair, other.index_pair)
+            if np.any(mi>ma):
+                return obj.zero()
+            else:
+                obj = obj.resize(mi, ma)
+                other = other.resize(mi, ma)
+        return f(obj, other)
+    return _f
+
+def fit3(f):
+    def _f(obj, other):
+        if isinstance(other, BaseEll):
+            mi, ma = shared_index(obj.index_pair, other.index_pair)
+            if np.any(mi>ma):
+                return 0
+            else:
+                obj = obj.resize(mi, ma)
+                other = other.resize(mi, ma)
+        return f(obj, other)
+    return _f
+
 
 class BaseEll(np.ndarray):
     """Ell Class: sequence spaces on Z^n
@@ -86,7 +109,7 @@ class BaseEll(np.ndarray):
         if obj is None:
             return
         elif isinstance(obj, (tuple, list)):
-            __array_finalize__(self, np.array(obj)) 
+            self.__array_finalize__(np.array(obj)) 
             return
         if isinstance(obj, BaseEll):
             self._min_index = obj.min_index
@@ -299,7 +322,7 @@ shape: {self.shape}"""
         cpy -= other
         return cpy
 
-    @fit
+    @fit2
     def __imul__(self, other):
         return _imul(self, other)
 
@@ -308,7 +331,7 @@ shape: {self.shape}"""
         cpy *= other
         return cpy
 
-    @fit
+    @fit2
     def __rmul__(self, other):
         return _rmul(self, other)
 
@@ -325,7 +348,6 @@ shape: {self.shape}"""
             cpy @= other
             return cpy
 
-    @fit
     def __rmatmul__(self, other):
         # convolution: size -> size1 + size2 - 1
         if np.isscalar(other):
@@ -333,15 +355,12 @@ shape: {self.shape}"""
         else:
             return _rmatmul(self, other)
 
-    def dot(self, other):
+    @fit3
+    def dot(self, other=None):
         # inner prod
-        mi, ma = shared_index(self.index_pair, other.index_pair)
-        if np.any(mi>ma):
-            return 0
-        else:
-            obj = self.resize(mi, ma)
-            other = other.resize(mi, ma)
-            return np.dot(obj.ravel(), other.ravel())
+        if other is None:
+            other = self
+        return np.dot(self.ravel(), other.ravel())
 
     def norm(self, *args, **kwargs):
         return LA.norm(self.ravel(), *args, **kwargs)
@@ -677,10 +696,6 @@ shape: {self.shape}"""
     def conv1d(self, *args, **kwargs):
         return self.conv_1d(*args, **kwargs)
 
-    def conv2d(self, *args, **kwargs):
-        return self.conv_2d(*args, **kwargs)
-
-
 
 class AsReal:
     # just let star-operator == reflecting operator
@@ -760,6 +775,27 @@ class BaseMultiEll(BaseEll):
         a = a.reshape(a.shape+(1,))
         return np.kron(np.asarray(self), a)
 
+    def get_channal(self, ch=0):
+        return BaseEll(_getitem(self, (..., ch)))
+
+    def __add__(self, other):
+        if not isinstance(other, MultiEllnd) and other.ndim == self.ndim:
+            return self.__class__([self.get_channal(k) * other for k in range(self.n_channels)])
+        else:
+            return super().__add__(other)
+
+    def __sub__(self, other):
+        if not isinstance(other, MultiEllnd) and other.ndim == self.ndim:
+            return self.__class__([self.get_channal(k) * other for k in range(self.n_channels)])
+        else:
+            return super().__sub__(other)
+
+    def __mul__(self, other):
+        if not isinstance(other, MultiEllnd) and other.ndim == self.ndim:
+            return self.__class__([self.get_channal(k) * other for k in range(self.n_channels)])
+        else:
+            return super().__mul__(other)
+
 
 class Ellnd(BaseEll):
     def __new__(cls, array, min_index=0, max_index=None, *args, **kwargs):
@@ -785,11 +821,15 @@ class Ellnd(BaseEll):
     def __getitem__(self, ind):
         # get one element
         if isinstance(ind, int):
-            return self[tuple(np.array((ind,)*self.ndim)-self.min_index)]
+            if np.any(ind < self.min_index) or np.any(ind > self.max_index):
+                return 0
+            return self[(ind - self.min_index,)*self.ndim]
         elif isinstance(ind, slice):
-            raise NotImplementedError('not support slice currently!')
+            return self[(ind,)*self.ndim]
         elif isinstance(ind, tuple) and all(map(lambda x: isinstance(x, int), ind)):
             return self[tuple((np.array(ind)-self.min_index))]
+        elif isinstance(ind, list) and all(map(lambda x: isinstance(x, (int, tuple)), ind)):
+            return Ell1d([self[k] for k in ind])
         # slice of a seq.
         ss= []
         min_index = []
@@ -816,6 +856,7 @@ class Ellnd(BaseEll):
 
 
 class MultiEllnd(Ellnd, BaseMultiEll):
+    
     pass
 
 class Ell2d(Ellnd):
@@ -844,11 +885,11 @@ class Ell2d(Ellnd):
         if isinstance(other, Ell1d):
             return self.conv_tensor(other)
         elif isinstance(other, Ell2d):
-            return self.conv_2d(other)
+            return self.conv2d(other)
         else:
             raise TypeError("`other` should be an instance of Ell1d or Ell2d")
 
-    def conv_2d(self, other):
+    def conv2d(self, other):
         obj = signal.convolve2d(self, other)
         min_index, max_index = np.add(self.min_index, other.min_index), np.add(self.max_index, other.max_index)
         return self.__class__(obj, min_index=min_index, max_index=max_index)
@@ -979,7 +1020,7 @@ class MultiEll2d(BaseMultiEll, Ell2d):
 
         return cpy
 
-    def conv_2d(self, other):
+    def conv2d(self, other):
         obj = np.dstack([signal.convolve2d(self[:,:,k], other) for k in range(self.n_channels)])
         min_index, max_index = np.add(self.min_index, other.min_index), np.add(self.max_index, other.max_index)
         return self.__class__(obj, min_index=min_index, max_index=max_index)
@@ -1153,6 +1194,7 @@ class Ell1d(BaseEll):
 
     def __matmul__(self, other):
         # convolution: size -> size1 + size2 - 1
+        assert isinstance(other, Ell1d), 'other should be an instance of Ell1d'
         array = np.convolve(self, other)
         min_index = self.min_index + other.min_index
         max_index = self.max_index + other.max_index
