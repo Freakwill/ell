@@ -196,7 +196,13 @@ im.to_image().show()
 
 There are some experiements in `examples/` most of whom are related to wavelets. Our ambition is to replace [pywavlets](http://pywavelets.readthedocs.io/en/latest/)
 
-`pyramid.py` is recommanded to run to have a view with pyramid algorithm which is one of the goals to developing Ell.
+`pyramid.py` is recommanded to run to have a view with pyramid algorithm (developed by Burt & Adelson 1983) which is one of the goals to developing Ell.
+
+`mallat.py` decompose an image as a quadtree.
+
+`image_compress.py` a numerical experiment of image compression
+
+
 
 ## TO-DO
 

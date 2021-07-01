@@ -109,6 +109,12 @@ def test_sub_2d():
     c = b-a
     assert c.min_index == (-2,-2) and c.max_index == (4, 3)
 
+def test_mul_2d():
+    a = Ell2d(np.ones((5,4)))
+    b = Ell2d(np.ones((5,4)), min_index=-2)
+    c = b*a
+    assert c.min_index == (0,0) and c.max_index == (2, 1)
+
 def test_sub_m2d():
     a = MultiEll2d(np.ones((5,4,3)))
     b = MultiEll2d(np.ones((5,4,3)), min_index=-2)
@@ -126,5 +132,5 @@ def test_dot():
     a = Ell1d(np.ones(5), min_index=-2)
     assert a.dot(a) == 5
 
-test_dot()
+test_mul_2d()
 
