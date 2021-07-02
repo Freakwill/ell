@@ -134,9 +134,13 @@ def test_dot():
 
 def test_make_multi():
     a = Ell2d(np.ones((5,4)), min_index=-2)
-    print(a)
     a = MultiEll2d.make_multi(a)
-    print(a)
+    assert a.ndim == 2
 
-test_make_multi()
+def test_add_x():
+    a = Ell2d(np.ones((5,4)), min_index=-2)
+    b = MultiEll2d(np.ones((5,4,3)), min_index=0)
+    c = a +b
+    assert isinstance(c, MultiEll2d)
 
+test_add_x()

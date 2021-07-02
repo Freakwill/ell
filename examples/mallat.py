@@ -59,7 +59,7 @@ def draw(tree, fig):
 
 level = 1
 _filter = Filter.from_name('db2')
-a = ImageRGB.open('lenna.jpg')
+a = ImageGray.open('lenna.jpg')
 t = a.mallat_tensor(_filter, level=level)
 
 mallat_rec(t, _filter).imshow()
