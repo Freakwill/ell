@@ -57,14 +57,14 @@ def draw(tree, fig):
     fig.suptitle("Mallat Algo. for Tensor Wavelets")
 
 
-level = 2
-_filter = Filter.from_name('db6')
+level = 1
+_filter = Filter.from_name('db2')
 a = ImageRGB.open('lenna.jpg')
 t = a.mallat_tensor(_filter, level=level)
 
-mallat_rec(t, _filter).to_image().show()
+mallat_rec(t, _filter).imshow()
 
-import matplotlib.pyplot as plt
-fig = plt.figure(constrained_layout=True)
-draw(t, fig)
-plt.show()
+# import matplotlib.pyplot as plt
+# fig = plt.figure(constrained_layout=True)
+# draw(t, fig)
+# plt.show()

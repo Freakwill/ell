@@ -132,5 +132,11 @@ def test_dot():
     a = Ell1d(np.ones(5), min_index=-2)
     assert a.dot(a) == 5
 
-test_mul_2d()
+def test_make_multi():
+    a = Ell2d(np.ones((5,4)), min_index=-2)
+    print(a)
+    a = MultiEll2d.make_multi(a)
+    print(a)
+
+test_make_multi()
 

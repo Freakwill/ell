@@ -114,3 +114,8 @@ def inc_tuple(t, v, axis=None):
 
 def is_index(i):
     return isinstance(i, (int, np.int64))
+
+
+def equal_ndim(x, y):
+    return isinstance(x, np.ndarray) and isinstance(x, np.ndarray) and x.ndim == y.ndim
+

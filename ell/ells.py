@@ -86,7 +86,7 @@ class BaseEll(np.ndarray):
     """Ell Class: sequence spaces on Z^n
     """
 
-    ndim = None
+    _ndim = None
 
     def __new__(cls, array, min_index=0, max_index=None, *args, **kwargs):
 
@@ -300,10 +300,9 @@ shape: {self.shape}"""
     def __iadd__(self, other):
         return _iadd(self, other)
 
+    @fit
     def __add__(self, other):
-        cpy = self.copy()
-        cpy += other
-        return cpy
+        return _add(self, other)
 
     @fit
     def __radd__(self, other):
@@ -317,19 +316,17 @@ shape: {self.shape}"""
     def __rsub__(self, other):
         return _rsub(self, other)
 
+    @fit
     def __sub__(self, other):
-        cpy = self.copy()
-        cpy -= other
-        return cpy
+        return _sub(self, other)
 
     @fit2
     def __imul__(self, other):
         return _imul(self, other)
 
+    @fit
     def __mul__(self, other):
-        cpy = self.copy()
-        cpy *= other
-        return cpy
+        return _mul(self, other)
 
     @fit2
     def __rmul__(self, other):
@@ -734,10 +731,8 @@ class BaseMultiEll(BaseEll):
             if obj.ndim == 1:
                 raise DimError('>=2', 'Note mutli-values are set in the last dim!')
             else:
-                if not hasattr(self, 'min_index'):
-                    self.min_index = np.zeros(obj.ndim - 1, dtype=int)
-                if not hasattr(self, 'max_index'):
-                    self.max_index = self.min_index + np.array(obj.shape[:-1], dtype=int) - 1
+                self._min_index = np.zeros(obj.ndim - 1, dtype=int)
+                self._max_index = np.subtract(obj.shape[:-1], 1)
         else:
             raise TypeError('Type of `obj` should be BaseEll | ndarray | tuple | list!')
 
@@ -776,25 +771,52 @@ class BaseMultiEll(BaseEll):
         return np.kron(np.asarray(self), a)
 
     def get_channal(self, ch=0):
-        return BaseEll(_getitem(self, (..., ch)))
+        return Ellnd(_getitem(self, (..., ch)))
 
     def __add__(self, other):
-        if not isinstance(other, MultiEllnd) and other.ndim == self.ndim:
-            return self.__class__([self.get_channal(k) * other for k in range(self.n_channels)])
+        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
+            return super().__mul__(self.embed(other))
         else:
             return super().__add__(other)
 
+    def __radd__(self, other):
+        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
+            return super().__radd__(self.embed(other))
+        else:
+            return super().__radd__(other)
+
     def __sub__(self, other):
-        if not isinstance(other, MultiEllnd) and other.ndim == self.ndim:
-            return self.__class__([self.get_channal(k) * other for k in range(self.n_channels)])
+        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
+            return super().__mul__(self.embed(other))
         else:
             return super().__sub__(other)
 
+    def __rsub__(self, other):
+        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
+            return super().__mul__(self.embed(other))
+        else:
+            return super().__rsub__(other)
+
     def __mul__(self, other):
-        if not isinstance(other, MultiEllnd) and other.ndim == self.ndim:
-            return self.__class__([self.get_channal(k) * other for k in range(self.n_channels)])
+        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
+            return super().__mul__(self.embed(other))
         else:
             return super().__mul__(other)
+
+
+    @classmethod
+    def embed(cls, other):
+        return cls(np.expand_dims(np.asarray(other), -1), min_index=other.min_index, max_index=other.max_index)
+
+    @classmethod
+    def make_multi(cls, other, n_channels=3):
+        if hasattr(other, 'min_index'):
+            min_index = other.min_index
+            max_index = other.max_index
+        else:
+            min_index = 0
+            max_index = None
+        return cls(np.tile(np.expand_dims(np.asarray(other), -1), n_channels), min_index=min_index, max_index=max_index)
 
 
 class Ellnd(BaseEll):
@@ -981,7 +1003,7 @@ class Ell2d(Ellnd):
         return np.arange(self.min_index[0], self.max_index[0]+1), np.arange(self.min_index[1], self.max_index[1]+1)
 
 
-class MultiEll2d(BaseMultiEll, Ell2d):
+class MultiEll2d(MultiEllnd, Ell2d):
     ndim = 2
     
 

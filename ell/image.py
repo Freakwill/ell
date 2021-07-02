@@ -110,6 +110,23 @@ class WaveletTree(Tree):
                 node.data = key(node.data)
         return cpy
 
+    def mallat_rec(self, dual_filter, level=0):
+        # mallat rec.
+        if self.depth() == 1:
+            n1 = self.get_node(level+1)
+            n11, n12, n13 = (self.get_node((level+1, k)) for k in range(1,4))
+            return n1.data.expand(dual_filter)\
+            + n11.data.expand(dual_filter.tensor(dual_filter.check()))\
+            + n12.data.expand(dual_filter.check().tensor(dual_filter))\
+            + n13.data.expand(dual_filter.check())
+        else:
+            m = self.subtree(level+1).mallat_rec(dual_filter, level=level+1)
+            n11, n12, n13 = (self.get_node((level+1, k)) for k in range(1,4))
+            return m.expand(dual_filter)\
+            + n11.data.expand(dual_filter.tensor(dual_filter.check()))\
+            + n12.data.expand(dual_filter.check().tensor(dual_filter))\
+            + n13.data.expand(dual_filter.check())
+
 class WaveletNode(Node):
     @property
     def tag(self):

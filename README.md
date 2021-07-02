@@ -202,6 +202,8 @@ There are some experiements in `examples/` most of whom are related to wavelets.
 
 `image_compress.py` a numerical experiment of image compression
 
+`poisson.py` poisson editting
+
 
 
 ## TO-DO
