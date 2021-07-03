@@ -91,12 +91,15 @@ class BaseEll(np.ndarray):
     _ndim = None
 
     def __new__(cls, array, min_index=0, max_index=None, *args, **kwargs):
-
-        obj = np.asarray(array).view(cls)
+        if not isinstance(array, np.ndarray):
+            array = np.asarray(array)
+        obj = array.view(cls)
         if isinstance(min_index, (int, Iterable)):
             if max_index is None:
                 obj.min_index = min_index
             elif isinstance(max_index, (int, Iterable)):
+                array = _getitem(array, tuple(slice(0, ma-mi+1) for mi, ma in zip(min_index, max_index)))
+                obj = array.view(cls)
                 obj._min_index = min_index if np.isscalar(min_index) else tuple(min_index)
                 obj._max_index = max_index if np.isscalar(max_index) else tuple(max_index)
             else:
@@ -692,13 +695,35 @@ shape: {self.shape}"""
     def to_multi(self, n_channels=3):
         return np.stack((self,)*n_channels, axis=-1)
 
-    def conv1d(self, other, axis=0):
-        if isinstance(other, Ell1d):
-            obj = np.apply_along_axis(np.convolve, axis, np.asarray(self), np.asarray(other))
+    def conv1d(self, other, axis=0, mode='full'):
+        """Convolution of Ell and Ell1d
+
+        This is a core method of many operators!
+        
+        Arguments:
+            other {Ell1d} -- a 1d-ell
+            mode -- mode of np.convolve, only support "full" and "same"
+        
+        Keyword Arguments:
+            axis {number} -- Axis along which a 1d-ell convolves with the object. (default: {0})
+        
+        Returns:
+            BaseEll
+        
+        Raises:
+            TypeError -- `other` have to be Ell1d
+        """
+
+        if isinstance(other, Ell1d) and np.asarray(other).ndim == 1:
+            obj = np.apply_along_axis(np.convolve, axis, np.asarray(self), np.asarray(other), mode=mode)
         else:
             raise TypeError('`other` should be an instance of Ell1d')
-        min_index = inc_tuple(self.min_index, other.min_index, axis=axis)
-        max_index = inc_tuple(self.max_index, other.max_index, axis=axis)
+        if mode == 'full':
+            min_index = inc_tuple(self.min_index, other.min_index, axis=axis)
+            max_index = inc_tuple(self.max_index, other.max_index, axis=axis)
+        elif mode == 'same':
+            min_index = self.min_index
+            max_index = self.max_index
         return self.__class__(obj, min_index=min_index, max_index=max_index)
 
 
