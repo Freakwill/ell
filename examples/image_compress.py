@@ -22,19 +22,20 @@ def mallat_rec(tree, dual_filter, level=0):
         + n13.data.expand(dual_filter.check())
 
 level = 4
-_filter = Filter.from_name('db5')
+_filter = Filter.from_name('db2')
 
-a = ImageRGB.open('lenna.jpg')
+a = ImageGray.open('lenna.jpg')
 t = a.mallat_tensor(_filter, level=level)
 
-def key(d):
-    k = np.prod(d.shape)
-    k = int(np.round(k *0.05))
-    th = [np.ndarray.__getitem__(np.sort(np.asarray(d[:,:,ch]), axis=None), -k) for ch in range(3)]
-    return d.truncate(th)
-        
+# def key(d):
+#     k = np.prod(d.shape)
+#     k = int(np.round(k *0.05))
+#     th = np.ndarray.__getitem__(np.sort(np.asarray(d), axis=None), -k)
+#     # th = [np.ndarray.__getitem__(np.sort(np.asarray(d[:,:,ch]), axis=None), -k) for ch in range(3)]
+#     return d.truncate(th)
 
-t = t.apply_data(key)
+
+# t = t.apply_data(key)
 # print(t)
 
 ret= mallat_rec(t, dual_filter=_filter)
@@ -44,10 +45,9 @@ fig = plt.figure()
 fig.suptitle('Image Compression')
 ax = fig.subplots(1,2)
 ax[0].imshow(a.to_image())
-ax[1].imshow(ret.minmaxmap().resize_as(a).to_image())
+ax[1].imshow(ret.resize_as(a).to_image())
 ax[0].set_title('Origial Image')
 ax[0].axis('off')
 ax[1].set_title('Compressed Image (<10%)')
 ax[1].axis('off')
 plt.show()
-

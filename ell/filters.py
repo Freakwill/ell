@@ -54,7 +54,7 @@ class Filter(Ell1d):
         psi = np.asarray(self.check().up_sample(2**(level-1)) @ t)
         return phi, psi, self.irange, self.mirror_range
 
-    def tensor(self, other):
+    def tensor(self, other=None):
         return Filter2d.view(super().tensor(other))
 
 

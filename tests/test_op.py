@@ -1,11 +1,8 @@
 from ell import *
 import numpy as np
+from utils import *
 
 _filter = Filter.from_name('db2')
-
-def check(a, mi, ma, shape):
-    return np.all(a.min_index == mi) and np.all(a.max_index == ma) and np.all(np.equal(a.shape, shape))
-
 
 def test_copy():
     b = Ell1d([0,1,2,3])
@@ -23,24 +20,24 @@ def test_copy2d():
     a = Ell1d([1,2,3,4]).tensor()
     cpy = a.copy()
     c = cpy @ _filter
-    assert np.all(np.equal(a.min_index, 0)) and np.all(np.equal(a.max_index, 3))
+    assert (a.min_index, a.max_index) == (0, 3)
 
 def test_up_sample():
     b = _filter.tensor()
     a = b.up_sample()
-    assert np.all(a.shape==np.array(b.shape) *2-1)
-    assert np.all(a.min_index == np.multiply(b.min_index, 2)) and np.all(a.max_index == np.multiply(b.max_index, 2))
+    assert equal(a.shape, np.multiply(b.shape, 2)-1)
+    assert a.min_index == tuple(np.multiply(b.min_index, 2)) and equal(a.max_index, np.multiply(b.max_index, 2))
 
 def test_up_sample_2d():
     b = MultiEll2d(np.ones((4,5,3)))
     a = b.up_sample(k=2)
-    assert np.all(a.shape==np.array(b.shape) *2-1)
-    assert np.all(a.min_index == np.multiply(b.min_index, 2)) and np.all(a.max_index == np.multiply(b.max_index, 2))
+    assert equal(a.shape, np.multiply(b.shape, 2)-1)
+    assert equal(a.min_index, np.multiply(b.min_index, 2)) and equal(a.max_index, np.multiply(b.max_index, 2))
 
 def test_down_sample_2d():
     b = MultiEll2d(np.ones((4,5,3)))
     a = b.down_sample(k=2, axis=0).down_sample(k=2, axis=1)
-    assert np.all(a.min_index == np.floor(np.divide(b.min_index, 2)))
+    assert equal(a.min_index, np.floor(np.divide(b.min_index, 2)))
 
     a = b.down_sample(k=2, axis=0)
     assert a.min_index[0] == b.min_index[0] // 2
@@ -141,6 +138,8 @@ def test_add_x():
     a = Ell2d(np.ones((5,4)), min_index=-2)
     b = MultiEll2d(np.ones((5,4,3)), min_index=0)
     c = a +b
-    assert isinstance(c, MultiEll2d)
+    print(c)
+    ImageRGB(c*255/2).imshow()
+    assert isinstance(c, MultiEll2d) and c.shape == (7, 6)
 
 test_add_x()

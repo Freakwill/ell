@@ -13,16 +13,16 @@ def mallat_rec(tree, dual_filter, level=0):
         n1 = tree.get_node(level+1)
         n11, n12, n13 = (tree.get_node((level+1, k)) for k in range(1,4))
         return n1.data.expand(dual_filter)\
-        + n11.data.expand(dual_filter.tensor(dual_filter.check()))\
-        + n12.data.expand(dual_filter.check().tensor(dual_filter))\
-        + n13.data.expand(dual_filter.check())
+        + n11.data.expand(dual_filter.g.tensor(dual_filter))\
+        + n12.data.expand(dual_filter.tensor(dual_filter.g))\
+        + n13.data.expand(dual_filter.g)
     else:
         m = mallat_rec(tree.subtree(level+1), dual_filter, level=level+1)
         n11, n12, n13 = (tree.get_node((level+1, k)) for k in range(1,4))
         return m.expand(dual_filter)\
-        + n11.data.expand(dual_filter.tensor(dual_filter.check()))\
-        + n12.data.expand(dual_filter.check().tensor(dual_filter))\
-        + n13.data.expand(dual_filter.check())
+        + n11.data.expand(dual_filter.g.tensor(dual_filter))\
+        + n12.data.expand(dual_filter.tensor(dual_filter.g))\
+        + n13.data.expand(dual_filter.g)
 
 
 def draw(tree, fig):
@@ -62,7 +62,7 @@ _filter = Filter.from_name('db2')
 a = ImageGray.open('lenna.jpg')
 t = a.mallat_tensor(_filter, level=level)
 
-mallat_rec(t, _filter).imshow()
+mallat_rec(t, _filter).minmaxmap().imshow()
 
 # import matplotlib.pyplot as plt
 # fig = plt.figure(constrained_layout=True)

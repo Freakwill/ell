@@ -3,9 +3,10 @@
 from ell import *
 
 level = 7
-ds = 2**(level/2) * compose(d_filter, level=level)
+_filter = Filter.from_name('db2')
+ds = 2**(level/2) * compose(Filter.from_name('db2'), level=level)
 ds2d = ds.tensor()
-dw = 2**.5 * d_filter.check().up_sample(2**level) @ ds
+dw = 2**.5 * _filter.check().up_sample(2**level) @ ds
 dw2d = dw.tensor()
 
 import matplotlib.pyplot as plt

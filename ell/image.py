@@ -45,8 +45,8 @@ class ImageLike:
             putmask(obj > 255, 255)
         return Image.fromarray(np.asarray(np.round(obj)).astype('uint8')).convert(mode)
 
-    def imshow(self):
-        self.to_image().show()
+    def imshow(self, *args, **kwargs):
+        self.to_image(*args, **kwargs).show()
 
     @property
     def mode(self):
@@ -77,9 +77,9 @@ class ImageLike:
                 D = H.reduce(filter.check(), axis=1)
                 H = H.reduce(filter, axis=1)
                 # L = x.reduce(filter)
-                # H = x.reduce(filter.tensor(filter.check()))
-                # V = x.reduce(filter.check().tensor(filter))
-                # D = x.reduce(filter.check())
+                # H = x.reduce(filter.tensor(filter.g))
+                # V = x.reduce(filter.g.tensor(filter))
+                # D = x.reduce(filter.g)
                 tree.create_node(identifier=(offset+1, 1), data=H, parent=offset)
                 tree.create_node(identifier=(offset+1, 2), data=V, parent=offset)
                 tree.create_node(identifier=(offset+1, 3), data=D, parent=offset)
@@ -116,16 +116,16 @@ class WaveletTree(Tree):
             n1 = self.get_node(level+1)
             n11, n12, n13 = (self.get_node((level+1, k)) for k in range(1,4))
             return n1.data.expand(dual_filter)\
-            + n11.data.expand(dual_filter.tensor(dual_filter.check()))\
-            + n12.data.expand(dual_filter.check().tensor(dual_filter))\
-            + n13.data.expand(dual_filter.check())
+            + n11.data.expand(dual_filter.tensor(dual_filter.g))\
+            + n12.data.expand(dual_filter.g.tensor(dual_filter))\
+            + n13.data.expand(dual_filter.g)
         else:
             m = self.subtree(level+1).mallat_rec(dual_filter, level=level+1)
             n11, n12, n13 = (self.get_node((level+1, k)) for k in range(1,4))
             return m.expand(dual_filter)\
-            + n11.data.expand(dual_filter.tensor(dual_filter.check()))\
-            + n12.data.expand(dual_filter.check().tensor(dual_filter))\
-            + n13.data.expand(dual_filter.check())
+            + n11.data.expand(dual_filter.tensor(dual_filter.g))\
+            + n12.data.expand(dual_filter.g.tensor(dual_filter))\
+            + n13.data.expand(dual_filter.g)
 
 class WaveletNode(Node):
     @property

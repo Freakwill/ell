@@ -2,13 +2,14 @@
 
 from ell import *
 
+_filter = Filter.from_name('db4')
+_filter.orth_test()
+one=Ell1d.unit()
 
-d_filter.orth_test()
+a= Ell1d([0,0,1,1,0,0])
+print(a.filter(_filter) + a.filter(_filter.g)  - one)
 
-a= Ell1D([0,0,1,1,0,0])
-print(a.filter(d_filter) + a.filter(d_filter.check()))
+_filter.tensor().orth_test()
 
-d_filter.tensor().orth_test()
-
-a= Ell1D([0,0,1,1,0,0]).tensor()
-print(a.filter(d_filter) + a.filter(d_filter.check()))
+a= Ell1d([0,0,1,1,0,0]).tensor()
+print(a.filter(_filter) + a.filter(_filter.g))

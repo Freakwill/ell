@@ -11,6 +11,8 @@ A sequence implemented by Python is represented by two parts:
 2. min_index, max_index: lower bound and upper bound of the indexes on which the values are non-zero.
 By default, the indexes start from 0
 
+In the context of Python, we call a such sequance an ell.
+
 -------------------------------
 Author: William
 From: 2015-07-28 (this work is initialized from 2015 with Matlab)
@@ -236,7 +238,6 @@ class BaseEll(np.ndarray):
     def zero(cls, min_index=0, max_index=None, ndim=None):
         ndim = ndim or cls.ndim or 1
         if max_index is None:
-            print(ndim)
             if ndim == 1 or ndim:
                 return cls(np.zeros(1), min_index=min_index)
             else:
@@ -539,7 +540,7 @@ shape: {self.shape}"""
 
     # advanced operators
     def orth_test(self, k=2):
-        g = self.check()
+        g = self.g
         print(f"""
             Result of orthogonality test:
             Low-pass filter: {self}
@@ -550,8 +551,8 @@ shape: {self.shape}"""
             """)
 
     def biorth_test(self, dual, k=2):
-        g = self.check()
-        gg = dual.check()
+        g = self.g
+        gg = dual.g
         print(f"""
             Result of orthogonality test:
             Low-pass filter: {self}
@@ -572,13 +573,13 @@ shape: {self.shape}"""
     def reduce(self, weight, k=2, level=1, axis=None):
         # reduce operator: c -> D(cw*)
         if isinstance(axis, int):
-            return self.conv_1d(weight.H, axis=axis).down_sample(k, axis=axis)
+            return self.conv1d(weight.H, axis=axis).down_sample(k, axis=axis)
         elif axis is None:
             return (self @ weight.H).down_sample(k)
         elif isinstance(axis, tuple):
             cpy = self.copy()
             for a in axis:
-                cpy.conv_1d(weight.H, axis=a).down_sample(k, axis=a)
+                cpy.conv1d(weight.H, axis=a).down_sample(k, axis=a)
             return cpy
         else:
             raise TypeError('type of `axis` should be int | tuple | None')
@@ -616,8 +617,8 @@ shape: {self.shape}"""
         assert level > 0 and isinstance(level, int), '`level` should be an integer >=1!'
         if dual_low_filter is None:
             dual_low_filter = low_filter
-        high_filter = low_filter.check()
-        dual_high_filter = dual_low_filter.check()
+        high_filter = low_filter.g
+        dual_high_filter = dual_low_filter.g
 
         low_band = self.copy()
         high_bands = []
@@ -627,7 +628,7 @@ shape: {self.shape}"""
         dual_filter = dual_low_filter
         for i, h in enumerate(high_bands[1:], start=1):
             high_bands[i] = h.expand(dual_filter, k=k**i)
-            dual_filter = dual_filter.up_sample() @ dual_low_filter
+            dual_filter = dual_filter.up_sample(k=k) @ dual_low_filter
         low_band = low_band.expand(dual_filter, k=k**level)
         return low_band, high_bands
 
@@ -639,8 +640,8 @@ shape: {self.shape}"""
         assert level > 0 and isinstance(level, int), '`level` should be an integer >=1!'
         if dual_low_filter is None:
             dual_low_filter = low_filter
-        high_filter = low_filter.check()
-        dual_high_filter = dual_low_filter.check()
+        high_filter = low_filter.g
+        dual_high_filter = dual_low_filter.g
         
         low = self.copy()
         gauss = [low]
@@ -681,7 +682,7 @@ shape: {self.shape}"""
     def to_multi(self, n_channels=3):
         return np.stack((self,)*n_channels, axis=-1)
 
-    def conv_1d(self, other, axis=0):
+    def conv1d(self, other, axis=0):
         if isinstance(other, Ell1d):
             obj = np.apply_along_axis(np.convolve, axis, np.asarray(self), np.asarray(other))
         else:
@@ -690,12 +691,12 @@ shape: {self.shape}"""
         max_index = inc_tuple(self.max_index, other.max_index, axis=axis)
         return self.__class__(obj, min_index=min_index, max_index=max_index)
 
-    def conv1d(self, *args, **kwargs):
-        return self.conv_1d(*args, **kwargs)
-
 
 class AsReal:
-    # just let star-operator == reflecting operator
+    """Mixin for real ell
+
+    just let star-operator == reflecting operator
+    """
     @property
     def star(self):
         return self.refl()
@@ -774,38 +775,58 @@ class BaseMultiEll(BaseEll):
         return Ellnd(_getitem(self, (..., ch)))
 
     def __add__(self, other):
-        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
-            return super().__mul__(self.embed(other))
-        else:
+        if np.isscalar(other) or (isinstance(other, np.ndarray) and other.ndim==1) or isinstance(other, MultiEllnd):
             return super().__add__(other)
+        elif equal_ndim(self, other):
+            print('hfuck')
+            return super().__add__(self.embed(other))
+        else:
+            raise TypeError('unsupported type!')
 
     def __radd__(self, other):
-        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
+        if np.isscalar(other) or (isinstance(other, np.ndarray) and other.ndim==1) or isinstance(other, MultiEllnd):
+            return super().__radd__(other)
+        elif equal_ndim(self, other):
             return super().__radd__(self.embed(other))
         else:
-            return super().__radd__(other)
+            raise TypeError('unsupported type!')
 
     def __sub__(self, other):
-        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
-            return super().__mul__(self.embed(other))
-        else:
+        if np.isscalar(other) or (isinstance(other, np.ndarray) and other.ndim==1) or isinstance(other, MultiEllnd):
             return super().__sub__(other)
+        elif equal_ndim(self, other):
+            return super().__sub__(self.embed(other))
+        else:
+            raise TypeError('unsupported type!')
 
     def __rsub__(self, other):
-        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
-            return super().__mul__(self.embed(other))
-        else:
+        if np.isscalar(other) or (isinstance(other, np.ndarray) and other.ndim==1) or isinstance(other, MultiEllnd):
             return super().__rsub__(other)
+        elif equal_ndim(self, other):
+            return super().__rsub__(self.embed(other))
+        else:
+            raise TypeError('unsupported type!')
 
     def __mul__(self, other):
-        if not isinstance(other, MultiEllnd) and equal_ndim(self, other):
+        if np.isscalar(other) or (isinstance(other, np.ndarray) and other.ndim==1) or isinstance(other, MultiEllnd):
+            return super().__mul__(other)
+        elif equal_ndim(self, other):
             return super().__mul__(self.embed(other))
         else:
-            return super().__mul__(other)
+            raise TypeError('unsupported type!')
+
+    def __rmul__(self, other):
+        if np.isscalar(other) or (isinstance(other, np.ndarray) and other.ndim==1) or isinstance(other, MultiEllnd):
+            return super().__rmul__(other)
+        elif equal_ndim(self, other):
+            return super().__rmul__(self.embed(other))
+        else:
+            raise TypeError('unsupported type!')
 
 
     @classmethod
     def embed(cls, other):
+        # embed Ell to MultiEll
         return cls(np.expand_dims(np.asarray(other), -1), min_index=other.min_index, max_index=other.max_index)
 
     @classmethod

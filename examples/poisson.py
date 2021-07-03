@@ -20,6 +20,10 @@ where $w=\nabla m \cdot \nabla (u_1-u_2)+m\circ\Delta (u_1-u_2)+ \Delta u_2$
 
 if m=constant then $w=\Delta(mu_1+(1-m)u_2)$
 
+For theory see 
+https://lemonzi.files.wordpress.com/2013/01/fcsa_lab3.pdf
+https://piazza.com/class_profile/get_resource/hz5ykuetdmr53k/i0zbj9rijcs7m7
+or https://www.cs.tau.ac.il/~dcor/Graphics/adv-slides/PoissonImageEditing06.pdf
 
 For conjugate gradient see https://en.wikipedia.org/wiki/Conjugate_gradient_method
 """
@@ -31,16 +35,16 @@ from PIL import *
 D = Ell1d([1,-1])
 L = Ell2d([[0,1,0],[1,-4,1],[0,1,0]], min_index=(-1,-1))
 
-u1 = Image.open('apple1.jpeg').resize((200,200))
-u2 = Image.open('lenna.jpg').resize((200,200))
-# u1 = u1.crop((0, 0, u1.size[0], u1.size[1]-2))
-# u1.save('shi.jpg')
+u1 = Image.open('apple1.jpg').resize((250,250))
+u2 = Image.open('lenna.jpg').resize((250,250))
+# u1 = u1.crop((10, 0, u1.size[0], u1.size[1]))
+# u1.save('orange1.jpeg')
 # raise
 u1 = ImageGray.from_image(u1)
 u2 = ImageGray.from_image(u2)
 
 r, c = u1.shape
-m = 1.0 - np.outer((92< np.arange(r)) * (np.arange(r)<155), (92< np.arange(c)) * (np.arange(c)<126))
+m = 1.0 - np.outer((140< np.arange(r)) * (np.arange(r)<190), (150< np.arange(c)) * (np.arange(c)<175))
 m = Ell2d(m)
 
 d = u1 - u2
@@ -57,7 +61,7 @@ Au = B * u - u @ L
 r1 = b - Au
 p = r1
 s1 = r1.dot(r1)
-for _ in range(200):
+for _ in range(500):
     Ap = B* p - p @ L
     alpha = s1 / p.dot(Ap)
     u = u + alpha * p
