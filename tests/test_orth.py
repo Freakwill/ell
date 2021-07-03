@@ -7,9 +7,7 @@ _filter.orth_test()
 one=Ell1d.unit()
 
 a= Ell1d([0,0,1,1,0,0])
-print(a.filter(_filter) + a.filter(_filter.g)  - one)
 
 _filter.tensor().orth_test()
 
 a= Ell1d([0,0,1,1,0,0]).tensor()
-print(a.filter(_filter) + a.filter(_filter.g))

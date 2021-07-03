@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-r"""Poisson Editting
+r"""Poisson Editing
 
-# Poisson Editting
+# Poisson Editing
 
-## Poisson Editting
+## Poisson Editing
 
 mask of gradient: m
 
@@ -35,24 +35,25 @@ from PIL import *
 D = Ell1d([1,-1])
 L = Ell2d([[0,1,0],[1,-4,1],[0,1,0]], min_index=(-1,-1))
 
-u1 = Image.open('apple1.jpg').resize((250,250))
-u2 = Image.open('lenna.jpg').resize((250,250))
-# u1 = u1.crop((10, 0, u1.size[0], u1.size[1]))
-# u1.save('orange1.jpeg')
+# embed u1 to u2
+u1 = Image.open('lenna.jpg').resize((250,250))
+u2 = Image.open('apple3.jpg').resize((250,250))
+# u2 = u2.crop((110, 0, u2.size[0], u2.size[1]))
+# u2.save('apple3.jpg')
 # raise
-u1 = ImageGray.from_image(u1)
-u2 = ImageGray.from_image(u2)
+u1 = ImageRGB.from_image(u1)
+u2 = ImageRGB.from_image(u2)
 
 r, c = u1.shape
-m = 1.0 - np.outer((140< np.arange(r)) * (np.arange(r)<190), (150< np.arange(c)) * (np.arange(c)<175))
+chi = np.outer((120< np.arange(r)) * (np.arange(r)<185), (125< np.arange(c)) * (np.arange(c)<170))
+m = 0.6*chi
 m = Ell2d(m)
 
 d = u1 - u2
 
 w = d.conv1d(D, axis=0) * m.conv1d(D, axis=0) + d.conv1d(D, axis=1) * m.conv1d(D, axis=1)  +  (d @ L) * m + (u2 @ L)
-B= 0.1 * np.outer((100< np.arange(r)) * (np.arange(r)<150), (100< np.arange(c)) * (np.arange(c)<150))
+B= 1- chi
 B = Ell2d(B)
-
 
 u = u1
 # u.imshow()
@@ -72,6 +73,5 @@ for _ in range(500):
     r1 = r2
     s1 = s2
     u = u.resize_as(u1)
-
 
 u.minmaxmap().imshow()

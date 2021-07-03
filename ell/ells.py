@@ -568,7 +568,17 @@ shape: {self.shape}"""
 
     def expand(self, weight, k=2, level=1, axis=None):
         # expand operator: Uc w
-        return self.up_sample(k=k, axis=axis) @ weight
+        if isinstance(axis, int):
+            return self.up_sample(k, axis=axis).conv1d(weight.H, axis=axis)
+        elif axis is None:
+            return self.up_sample(k=k, axis=axis) @ weight
+        elif isinstance(axis, tuple):
+            cpy = self.copy()
+            for a in axis:
+                cpy.down_sample(k, axis=a).conv1d(weight.H, axis=a)
+            return cpy
+        else:
+            raise TypeError('type of `axis` should be int | tuple | None')
 
     def reduce(self, weight, k=2, level=1, axis=None):
         # reduce operator: c -> D(cw*)
