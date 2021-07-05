@@ -57,7 +57,7 @@ def draw(tree, fig):
     fig.suptitle("Mallat Algo. for Tensor Wavelets")
 
 
-level = 1
+level = 3
 _filter = Filter.from_name('db2')
 a = ImageGray.open('lenna.jpg')
 t = a.mallat_tensor(_filter, level=level)

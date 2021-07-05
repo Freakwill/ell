@@ -62,7 +62,7 @@ Au = B * u - u @ L
 r1 = b - Au
 p = r1
 s1 = r1.dot(r1)
-for _ in range(500):
+for _ in range(10):
     Ap = B* p - p @ L
     alpha = s1 / p.dot(Ap)
     u = u + alpha * p
