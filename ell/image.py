@@ -2,6 +2,7 @@
 
 from .ells import *
 from .utils import max0
+from .errors import *
 from PIL import Image
 
 class ImageLike:
@@ -116,15 +117,15 @@ class WaveletTree(Tree):
             n1 = self.get_node(level+1)
             n11, n12, n13 = (self.get_node((level+1, k)) for k in range(1,4))
             return n1.data.expand(dual_filter)\
-            + n11.data.expand(dual_filter.tensor(dual_filter.g))\
-            + n12.data.expand(dual_filter.g.tensor(dual_filter))\
+            + n11.data.expand(dual_filter.g.tensor(dual_filter))\
+            + n12.data.expand(dual_filter.tensor(dual_filter.g))\
             + n13.data.expand(dual_filter.g)
         else:
             m = self.subtree(level+1).mallat_rec(dual_filter, level=level+1)
             n11, n12, n13 = (self.get_node((level+1, k)) for k in range(1,4))
             return m.expand(dual_filter)\
-            + n11.data.expand(dual_filter.tensor(dual_filter.g))\
-            + n12.data.expand(dual_filter.g.tensor(dual_filter))\
+            + n11.data.expand(dual_filter.g.tensor(dual_filter))\
+            + n12.data.expand(dual_filter.tensor(dual_filter.g))\
             + n13.data.expand(dual_filter.g)
 
 class WaveletNode(Node):
@@ -142,7 +143,7 @@ class ImageRGB(ImageLike, MultiEll2d):
     @staticmethod
     def from_image(image, min_index=np.array([0,0]), max_index=None):
         array = np.asarray(image, dtype=np.float64)
-        assert array.ndim == 3, 'Make sure the array representing the image has 3 dim.'
+        assert DimError(3, details='Make sure the array representing the image has 3 dim.')
         if max_index is None:
             max_index = min_index + np.array(array.shape[:-1]) - 1
         return ImageRGB(array, min_index=min_index, max_index=max_index)

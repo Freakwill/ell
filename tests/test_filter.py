@@ -45,4 +45,4 @@ def test_filter_m2d():
     reduced = signal.reduce(_filter)
     expanded= reduced.expand(_filter)
 
-test_filter_m2d()
+test_filter_2d()

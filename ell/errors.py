@@ -15,4 +15,4 @@ class DimError(EllException):
 
 
 class IndexUnavailableError(EllException):
-    message = "Ell objects must have min_index/max_index attritube! You have to provide min_index or max_index in some way!"
+    message = "Ell objects must have min_index/max_index attritubes with validated values! You have to provide min_index or max_index in some way!"

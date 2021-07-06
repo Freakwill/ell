@@ -19,7 +19,7 @@ def test_index_2d():
     assert o.min_index == (-5, -4) and o.max_index == (15, 16)
 
 def test_index_m2d():
-    o=MultiEll2d.zero(min_index=-10, max_index=10, n_values=3)
+    o=MultiEll2d.zero(min_index=-10, max_index=10, n_channels=3)
     o.set_min_index((-5,-4))
     assert o.min_index == (-5, -4) and o.max_index == (15, 16)
 

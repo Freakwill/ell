@@ -119,3 +119,7 @@ def is_index(i):
 def equal_ndim(x, y):
     return isinstance(x, np.ndarray) and isinstance(x, np.ndarray) and x.ndim == y.ndim
 
+
+# def index2slice(min_index, max_index):
+#     return tuple(slice(0, ma-mi+1) for mi, ma in zip(min_index, max_index))
+

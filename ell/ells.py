@@ -21,7 +21,7 @@ From: 2015-07-28 (this work is initialized from 2015 with Matlab)
 
 import copy
 from types import MethodType
-from collections import Iterable
+from collections.abc import Iterable
 
 import numpy as np
 import numpy.linalg as LA
@@ -88,7 +88,7 @@ class BaseEll(np.ndarray):
     """Ell Class: sequence spaces on Z^n
     """
 
-    _ndim = None
+    _ndim = None # default ndim of an ell
 
     def __new__(cls, array, min_index=0, max_index=None, *args, **kwargs):
         if not isinstance(array, np.ndarray):
@@ -239,7 +239,7 @@ class BaseEll(np.ndarray):
 
     @classmethod
     def zero(cls, min_index=0, max_index=None, ndim=None):
-        ndim = ndim or cls.ndim or 1
+        ndim = ndim or cls._ndim or 1
         if max_index is None:
             if ndim == 1 or ndim:
                 return cls(np.zeros(1), min_index=min_index)
@@ -253,15 +253,15 @@ class BaseEll(np.ndarray):
 
     @classmethod
     def unit(cls, index=0, ndim=None, *args, **kwargs):
-        ndim = ndim or cls.ndim or 1
+        ndim = ndim or cls._ndim or 1
         if ndim == 1:
-            e = cls.zero()
+            e = cls.zero(ndim=ndim, *args, **kwargs)
             e[index] = 1
             return e
         else:
             if np.isscalar(index):
                 index = tuple(index for _ in range(ndim))
-            e = cls.zero()
+            e = cls.zero(ndim=ndim, *args, **kwargs)
             e[index] = 1
             return e
 
@@ -379,6 +379,15 @@ shape: {self.shape}"""
             cpy.inc_min_index(n_zeros, axis=axis)
             return self.__class__(array, min_index=cpy.min_index)
 
+    def fit_size(self, *args, **kwargs):
+        # alias of resize
+        return self.resize(*args, **kwargs)
+
+    def fit_size_as(self, *args, **kwargs):
+        # alias of resize_as
+        return self.resize_as(*args, **kwargs)
+
+
     def resize_as(self, other):
         return self.resize(min_index=other.min_index, max_index=other.max_index)
 
@@ -431,11 +440,10 @@ shape: {self.shape}"""
         cpy.inc_min_index(k)
         return cpy
 
-    def refl(self):
+    def refl(self, axis=None):
         # reflecting
-        obj = np.flip(self)
         min_index, max_index = np.negative(self.max_index), np.negative(self.min_index)
-        return self.__class__(array, min_index=min_index, max_index=max_index)
+        return self.__class__(np.flip(self, axis=axis), min_index=min_index, max_index=max_index)
 
     def reflect(self):
         # alias of `refl`
@@ -484,76 +492,76 @@ shape: {self.shape}"""
     def kron(self, a):
         return np.kron(np.asarray(self), a)
 
-    def up_sample(self, k=2, axis=None):
+    def up_sample(self, step=2, axis=None):
         """up sampling
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
         """
-        if isinstance(k, int):
-            k = tuple(k for _ in range(len(axis)))
+        if isinstance(step, int):
+            step = tuple(step for _ in range(len(axis)))
         cpy = self.copy()
         if axis is None:
-            a = np.zeros((k for i in range(self.ndim)))
+            a = np.zeros((step for i in range(self.ndim)))
             a[tuple(0 for i in range(self.ndim))] = 1
-            cpy = self.__class__(cpy.kron(a))
+            cpy = self.__class__(cpy.stepron(a))
             for a in range(self.ndim):
-                cpy = np.delete(cpy, -np.arange(1, k[a]), axis=a)
-            cpy.min_index *= k
-            cpy.max_index *= k
+                cpy = np.delete(cpy, -np.arange(1, step[a]), axis=a)
+            cpy.min_index *= step
+            cpy.max_index *= step
         elif isinstance(axis, int):
-            a = np.zeros((k[i] if i == axis else 1 for i in range(self.ndim)))
+            a = np.zeros((step[i] if i == axis else 1 for i in range(self.ndim)))
             a[tuple(0 for i in range(self.ndim))] = 1
             cpy = self.__class__(cpy.kron(a))
-            cpy = np.delete(np.delete(cpy, -np.arange(1, k[a]), axis=0), -1, axis=1)
-            cpy.min_index[axis] *= k
-            cpy.max_index[axis] *= k
+            cpy = np.delete(np.delete(cpy, -np.arange(1, step[a]), axis=0), -1, axis=1)
+            cpy.min_index[axis] *= step
+            cpy.max_index[axis] *= step
         elif isinstance(axis, tuple):
-            a = np.zeros(tuple(k[i] if i in axis else 1 for i in range(self.ndim)))
+            a = np.zeros(tuple(step[i] if i in axis else 1 for i in range(self.ndim)))
             a[tuple(0 for i in range(self.ndim))] = 1
             cpy = self.__class__(cpy.kron(a))
             for a in axis:
-                cpy = np.delete(cpy, -np.arange(1, k[a]), axis=a)
-                cpy.min_index[a] *= k[a]
-                cpy.max_index[a] *= k[a]
+                cpy = np.delete(cpy, -np.arange(1, step[a]), axis=a)
+                cpy.min_index[a] *= step[a]
+                cpy.max_index[a] *= step[a]
         else:
             raise TypeError('axis is an instance of int | tuple');
         return cpy
     
-    def project_sample(self, k=2, axis=None):
+    def project_sample(self, step=2, axis=None):
         """project sampling
         P = UD
         """
-        return self.down_sample(k=k, axis=axis).up_sample(k=k, axis=axis)
+        return self.down_sample(step=step, axis=axis).up_sample(step=step, axis=axis)
 
 
     @property
     def U(self):
-        return self.up_sample(k=2)
+        return self.up_sample(step=2)
 
     @property
     def D(self):
-        return self.down_sample(k=2)
+        return self.down_sample(step=2)
 
     @property
     def P(self):
-        return self.project_sample(k=2)
+        return self.project_sample(step=2)
     
     def quantize(self, n=64):
         # quantization
         return np.round(self / n) * n;
 
     # advanced operators
-    def orth_test(self, k=2):
+    def orth_test(self, step=2):
         g = self.g
         print(f"""
             Result of orthogonality test:
             Low-pass filter: {self}
             High-pass filter: {g}
-            Orthogonality of low-pass filter: {self.reduce(self, k=2)}
-            Orthogonality of high-pass filter: {g.reduce(g, k=2)}
-            Orthogonality of low-pass and high-pass filters: {self.reduce(g, k=2)}
+            Orthogonality of low-pass filter: {self.reduce(self, step=2)}
+            Orthogonality of high-pass filter: {g.reduce(g, step=2)}
+            Orthogonality of low-pass and high-pass filters: {self.reduce(g, step=2)}
             """)
 
-    def biorth_test(self, dual, k=2):
+    def biorth_test(self, dual, step=2):
         g = self.g
         gg = dual.g
         print(f"""
@@ -562,48 +570,48 @@ shape: {self.shape}"""
             High-pass filter: {g}
             Dual low-pass filter: {dual}
             Dual high-pass filter: {gg}
-            Orthogonality of low-pass filter: {self.reduce(dual, k=2)}
-            Orthogonality of high-pass filter: {g.reduce(gg, k=2)}
-            Orthogonality of low-pass and dual high-pass filters: {self.reduce(gg, k=2)}
-            Orthogonality of dual low-pass and high-pass filters: {dual.reduce(g, k=2)}
+            Orthogonality of low-pass filter: {self.reduce(dual, step=2)}
+            Orthogonality of high-pass filter: {g.reduce(gg, step=2)}
+            Orthogonality of low-pass and dual high-pass filters: {self.reduce(gg, step=2)}
+            Orthogonality of dual low-pass and high-pass filters: {dual.reduce(g, step=2)}
             """)
 
 
-    def expand(self, weight, k=2, level=1, axis=None):
+    def expand(self, weight, step=2, level=1, axis=None):
         # expand operator: Uc w
         if isinstance(axis, int):
-            return self.up_sample(k, axis=axis).conv1d(weight.H, axis=axis)
+            return self.up_sample(step, axis=axis).conv1d(weight.H, axis=axis)
         elif axis is None:
-            return self.up_sample(k=k, axis=axis) @ weight
+            return self.up_sample(step=step, axis=axis) @ weight
         elif isinstance(axis, tuple):
             cpy = self.copy()
             for a in axis:
-                cpy.down_sample(k, axis=a).conv1d(weight.H, axis=a)
+                cpy.down_sample(step, axis=a).conv1d(weight.H, axis=a)
             return cpy
         else:
             raise TypeError('type of `axis` should be int | tuple | None')
 
-    def reduce(self, weight, k=2, level=1, axis=None):
+    def reduce(self, weight, step=2, level=1, axis=None):
         # reduce operator: c -> D(cw*)
         if isinstance(axis, int):
-            return self.conv1d(weight.H, axis=axis).down_sample(k, axis=axis)
+            return self.conv1d(weight.H, axis=axis).down_sample(step, axis=axis)
         elif axis is None:
-            return (self @ weight.H).down_sample(k)
+            return (self @ weight.H).down_sample(step)
         elif isinstance(axis, tuple):
             cpy = self.copy()
             for a in axis:
-                cpy.conv1d(weight.H, axis=a).down_sample(k, axis=a)
+                cpy.conv1d(weight.H, axis=a).down_sample(step, axis=a)
             return cpy
         else:
             raise TypeError('type of `axis` should be int | tuple | None')
 
-    def ezfilter(self, weight, dual_weight=None, k=2):
+    def ezfilter(self, weight, dual_weight=None, step=2):
         if dual_weight is None:
             dual_weight = weight
-        return (self @ weight.H).project_sample(k=k) @ dual_weight
+        return (self @ weight.H).project_sample(step=step) @ dual_weight
 
 
-    def filter(self, weight, dual_weight=None, op=None, k=2, level=1, resize=False):
+    def filter(self, weight, dual_weight=None, op=None, step=2, level=1, resize=False):
         if level == 1:
             if dual_weight is None:
                 dual_weight = weight.copy()
@@ -616,17 +624,17 @@ shape: {self.shape}"""
                 dual_weight = compose(dual_weight, level=level)
         cpy = self.copy()
         if op is None:
-            res = (cpy @ weight.H).project_sample(k**level) @ dual_weight
+            res = (cpy @ weight.H).project_sample(step**level) @ dual_weight
         elif isinstance(op, str):
-            res = getattr(cpy.reduce(weight, k**level), op)().expand(dual_weight, k**level)
+            res = getattr(cpy.reduce(weight, step**level), op)().expand(dual_weight, step**level)
         else:
-            res = op(cpy.reduce(weight, k**level)).expand(dual_weight, k**level)
+            res = op(cpy.reduce(weight, step**level)).expand(dual_weight, step**level)
         if resize:
             return res.resize_as(self)
         else:
             return res
 
-    def decompose(self, low_filter, dual_low_filter, k=2, level=2):
+    def decompose(self, low_filter, dual_low_filter, step=2, level=2):
         assert level > 0 and isinstance(level, int), '`level` should be an integer >=1!'
         if dual_low_filter is None:
             dual_low_filter = low_filter
@@ -636,17 +644,17 @@ shape: {self.shape}"""
         low_band = self.copy()
         high_bands = []
         for l in range(level):
-            high_bands.append(low.ezfilter(high_filter, dual_high_filter, k=k))
-            low_band = low_band.reduce(low_filter, k=k) # current low-band
+            high_bands.append(low.ezfilter(high_filter, dual_high_filter, step=step))
+            low_band = low_band.reduce(low_filter, step=step) # current low-band
         dual_filter = dual_low_filter
         for i, h in enumerate(high_bands[1:], start=1):
-            high_bands[i] = h.expand(dual_filter, k=k**i)
-            dual_filter = dual_filter.up_sample(k=k) @ dual_low_filter
-        low_band = low_band.expand(dual_filter, k=k**level)
+            high_bands[i] = h.expand(dual_filter, step=step**i)
+            dual_filter = dual_filter.up_sample(step=step) @ dual_low_filter
+        low_band = low_band.expand(dual_filter, step=step**level)
         return low_band, high_bands
 
 
-    def pyramid(self, low_filter, dual_low_filter=None, op=None, k=2, level=3, resize=False):
+    def pyramid(self, low_filter, dual_low_filter=None, op=None, step=2, level=3, resize=False):
         """Pyramid algorithm
         see [Burt & Adelson 1983]
         """
@@ -660,9 +668,9 @@ shape: {self.shape}"""
         gauss = [low]
         laplace = []
         for l in range(level):
-            low = low.reduce(low_filter, k=k) # current low-band
+            low = low.reduce(low_filter, step=step) # current low-band
             gauss.append(low)
-            laplace.append(gauss[-2] - low.expand(dual_low_filter, k=k))
+            laplace.append(gauss[-2] - low.expand(dual_low_filter, step=step))
         laplace.append(low)
 
         if op is None:
@@ -680,7 +688,7 @@ shape: {self.shape}"""
         rec_gauss = [l.copy() for l in rec_laplace]
 
         for l in range(level-1, -1, -1):
-            low = low.expand(low_filter, k)
+            low = low.expand(low_filter, step)
             rec_gauss[l] = rec_laplace[l] + rec_gauss[l+1].expand(dual_low_filter)
         if resize:
             laplace[0] = laplace[0].resize_as(self)
@@ -774,7 +782,8 @@ class BaseMultiEll(BaseEll):
 
     @classmethod
     def zero(cls, min_index=0, max_index=None, ndim=None, n_channels=3):
-        ndim = ndim or cls.ndim or 1
+        ndim = ndim or cls._ndim or 1
+        print(ndim)
 
         if max_index is None:
             if ndim == 1:
@@ -789,9 +798,7 @@ class BaseMultiEll(BaseEll):
 
     def refl(self):
         # reflecting
-        obj = np.flip(self, axis=range(self.ndim))
-        min_index, max_index = np.negative(self.max_index), np.negative(self.min_index)
-        return self.__class__(array, min_index=min_index, max_index=max_index)
+        return super().refl(axis=range(self.ndim))
 
     def fill_zero(self, n_zeros=1, axis=0):
         size = tuple(abs(n_zeros) if a == axis else k for a, k in enumerate(self.shape))
@@ -867,11 +874,9 @@ class BaseMultiEll(BaseEll):
     @classmethod
     def make_multi(cls, other, n_channels=3):
         if hasattr(other, 'min_index'):
-            min_index = other.min_index
-            max_index = other.max_index
+            min_index, max_index = other.min_index, other.max_index
         else:
-            min_index = 0
-            max_index = None
+            min_index, max_index = 0, None
         return cls(np.tile(np.expand_dims(np.asarray(other), -1), n_channels), min_index=min_index, max_index=max_index)
 
 
@@ -938,10 +943,11 @@ class MultiEllnd(Ellnd, BaseMultiEll):
     pass
 
 class Ell2d(Ellnd):
-    ndim = 2
+    _ndim = 2
 
     @classmethod
     def from_image(cls, image, min_index=np.array([0,0]), max_index=None, chennal=0):
+        print(image)
         if chennal is None:
             array = np.asarray(image, dtype=np.float64)
         else:
@@ -954,8 +960,7 @@ class Ell2d(Ellnd):
 
     def to_image(self, mode='L'):
         from PIL import Image
-        obj = np.round(self)
-        return Image.fromarray(obj.astype('uint8')).convert(mode)
+        return Image.fromarray(np.round(self).astype('uint8')).convert(mode)
 
 
     def __matmul__(self, other):
@@ -972,6 +977,7 @@ class Ell2d(Ellnd):
         min_index, max_index = np.add(self.min_index, other.min_index), np.add(self.max_index, other.max_index)
         return self.__class__(obj, min_index=min_index, max_index=max_index)
 
+
     def conv_tensor(self, other1, other2=None):
         if other2 is None:
             other2 = other1
@@ -983,62 +989,56 @@ class Ell2d(Ellnd):
         min_index = np.add(self.min_index, min_index)
         return self.__class__(array, min_index=min_index)
 
-
-    def refl(self):
-        # reflecting
-        array = _getitem(self, (np.s_[::-1], np.s_[::-1]))
-        return self.__class__(array, min_index=np.negative(self.max_index), max_index=np.negative(self.min_index))
-
-    def up_sample(self, k=2, axis=None):
+    def up_sample(self, step=2, axis=None):
         '''up sampling
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
         '''
 
         if axis is None or axis == (0, 1):
-            if isinstance(k, int):
-                k = (k, k)
-            a = np.zeros(k)
+            if isinstance(step, int):
+                step = (step, step)
+            a = np.zeros(step)
             a[0,0] = 1
             array = np.kron(self, a)
-            array = np.delete(np.delete(array, -np.arange(1, k[0]), axis=0), -np.arange(1, k[1]), axis=1)
+            array = np.delete(np.delete(array, -np.arange(1, step[0]), axis=0), -np.arange(1, step[1]), axis=1)
         elif isinstance(axis, int):
             if axis==1:
-                a = np.zeros(k)
+                a = np.zeros(step)
                 a[0] = 1
             else:
-                a = np.zeros((1, k))
+                a = np.zeros((1, step))
                 a[0,0] = 1
             array = np.kron(self, a)
-            array = np.delete(array, -np.arange(1, k), axis=axis)
+            array = np.delete(array, -np.arange(1, step), axis=axis)
         else:
             raise ValueError("Value of `axis` is invalid!")
 
-        return self.__class__(array, min_index=np.multiply(self.min_index, k), max_index=np.multiply(self.max_index, k))
+        return self.__class__(array, min_index=np.multiply(self.min_index, step), max_index=np.multiply(self.max_index, step))
 
-    def down_sample(self, k=2, axis=None):
+    def down_sample(self, step=2, axis=None):
         """down sampling
         D: z(m:M) => w([m/2]:[M/2]), size -> [size/2]
         """
-        if isinstance(k, int):
-            k = (k, k)
+        if isinstance(step, int):
+            step = (step, step)
         if axis is None or axis == (0,1):
-            d10, r0 = divround(self.min_index[0], k[0])
-            d20, _ = divround(self.max_index[0], k[0])
-            d11, r1 = divround(self.min_index[1], k[1])
-            d21, _ = divround(self.max_index[1], k[1])
-            array = _getitem(self, (np.s_[r0::k[0]], np.s_[r1::k[1]]))
+            d10, r0 = divround(self.min_index[0], step[0])
+            d20, _ = divround(self.max_index[0], step[0])
+            d11, r1 = divround(self.min_index[1], step[1])
+            d21, _ = divround(self.max_index[1], step[1])
+            array = _getitem(self, (np.s_[r0::step[0]], np.s_[r1::step[1]]))
             min_index = (d10, d11)
             max_index = (d20, d21)
         elif axis == 0:
-            d10, r0 = divround(self.min_index[0], k[0])
-            d20, _ = divround(self.max_index[0], k[0])
-            array = _getitem(self, (np.s_[r0::k[0]], COLON))
+            d10, r0 = divround(self.min_index[0], step[0])
+            d20, _ = divround(self.max_index[0], step[0])
+            array = _getitem(self, (np.s_[r0::step[0]], COLON))
             min_index = (d10, self.min_index[1])
             max_index = (d20, self.max_index[1])
         elif axis == 1:
-            d11, r1 = divround(self.min_index[1], k[1])
-            d21, _ = divround(self.max_index[1], k[1])
-            array = _getitem(self, (COLON, np.s_[r1::k[1]]))
+            d11, r1 = divround(self.min_index[1], step[1])
+            d21, _ = divround(self.max_index[1], step[1])
+            array = _getitem(self, (COLON, np.s_[r1::step[1]]))
             min_index = (self.min_index[0], d11)
             max_index = (self.max_index[0], d21)
         return self.__class__(array, min_index=min_index, max_index=max_index)
@@ -1060,46 +1060,47 @@ class Ell2d(Ellnd):
 
 
 class MultiEll2d(MultiEllnd, Ell2d):
-    ndim = 2
+    _ndim = 2
     
 
-    def up_sample(self, k=2, axis=None):
+    def up_sample(self, step=2, axis=None):
         """up sampling
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
         """
 
         cpy = self.copy()
         if isinstance(axis, int):
+            assert isinstance(step, int), 'step should be an instance of int, when axis is an integer.'
             if axis == 0:
-                a = np.zeros((k, 1))
+                a = np.zeros((step, 1))
                 a[0, 0] = 1
             else:
-                a = np.zeros(k)
+                a = np.zeros(step)
                 a[0] = 1
-            cpy = np.delete(cpy.kron(a), -np.arange(1, k), axis=axis)
-            cpy.min_index[axis] *= k
-            cpy.max_index[axis] *= k
+            cpy = np.delete(cpy.kron(a), -np.arange(1, step), axis=axis)
+            cpy.min_index[axis] *= step
+            cpy.max_index[axis] *= step
         elif isinstance(axis, tuple):
             if len(axis)==1:
-                return self.up_sample(k=k, axis=axis[0])
-            elif len(axis) == 2:
-                return self.up_sample(self, k=k, axis=None)
+                return self.up_sample(step=step, axis=axis[0])
+            elif axis == (0, 1):
+                return self.up_sample(step=step, axis=None)
             else:
                 raise ValueError('len of `axis` has to be <=2!')
         elif axis is None:
-            if isinstance(k, int):
-                k = (k,k)
-            a = np.zeros(k+(1,))
+            if isinstance(step, int):
+                step = (step,step)
+            a = np.zeros(step+(1,))
             a[0, 0, 0] = 1
-            cpy = self.__class__(np.kron(np.asarray(self), a), min_index=np.multiply(self.min_index, k), max_index=np.multiply(self.max_index, k))
-            cpy = np.delete(np.delete(cpy, -np.arange(1, k[0]), axis=0), -np.arange(1, k[1]), axis=1)
+            cpy = self.__class__(np.kron(np.asarray(self), a), min_index=np.multiply(self.min_index, step), max_index=np.multiply(self.max_index, step))
+            cpy = np.delete(np.delete(cpy, -np.arange(1, step[0]), axis=0), -np.arange(1, step[1]), axis=1)
         else:
             raise TypeError('`axis` is an instance of int | tuple');
 
         return cpy
 
     def conv2d(self, other):
-        obj = np.dstack([signal.convolve2d(self[:,:,k], other) for k in range(self.n_channels)])
+        obj = np.dstack([signal.convolve2d(self[:,:,ch], other) for ch in range(self.n_channels)])
         min_index, max_index = np.add(self.min_index, other.min_index), np.add(self.max_index, other.max_index)
         return self.__class__(obj, min_index=min_index, max_index=max_index)
 
@@ -1209,11 +1210,11 @@ class Ell1d(BaseEll):
 
     @property
     def irange(self):
-        return (self.min_index, self.max_index)
+        return self.min_index, self.max_index
 
     @property
     def mirror_range(self):
-        return (1-self.max_index, 1-self.min_index)
+        return 1-self.max_index, 1-self.min_index
 
 
     def resize(self, min_index=None, max_index=None):
@@ -1226,7 +1227,7 @@ class Ell1d(BaseEll):
         elif max_index is None:
             max_index = self.max_index
         else:
-            if np.all(min_index>self.max_index) or np.all(max_index<self.min_index):
+            if min_index>self.max_index or max_index<self.min_index:
                 return self.zero()
 
         m = min_index - self.min_index
@@ -1290,21 +1291,21 @@ class Ell1d(BaseEll):
         # reflecting
         return self.__class__(self[::-1], min_index=-self.max_index, max_index=-self.min_index)
 
-    def down_sample(self, k=2, axis=None):
+    def down_sample(self, step=2, axis=None):
         """down sampling
         D: z(m:M) => w([m/2]:[M/2]), size -> [size/2]
         
         Keyword Arguments:
-            k {number} -- sampling interval (default: {2})
+            step {number} -- sampling interval (default: {2})
         """
-        d1, r = divround(self.min_index, k)
-        d2, _ = divround(self.max_index, k)
-        obj = _getitem(self, np.s_[r::k])
+        d1, r = divround(self.min_index, step)
+        d2, _ = divround(self.max_index, step)
+        obj = _getitem(self, np.s_[r::step])
         obj._min_index = d1
         obj._max_index = d2
         return obj
 
-    def up_sample(self, k=2, axis=None):
+    def up_sample(self, step=2, axis=None):
         """up sampling, as an inverse of down_sample
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
 
@@ -1313,27 +1314,27 @@ class Ell1d(BaseEll):
         a.up_sample()
         """
 
-        a = np.zeros(k); a[0] = 1
-        obj = np.delete(np.kron(self.copy(), a), -np.arange(1, k))
-        return self.__class__(obj, min_index=self.min_index*k, max_index=self.max_index*k)
+        a = np.zeros(step); a[0] = 1
+        obj = np.delete(np.stepron(self.copy(), a), -np.arange(1, step))
+        return self.__class__(obj, min_index=self.min_index*step, max_index=self.max_index*step)
 
-    def project_sample(self, k=2):
+    def project_sample(self, step=2):
         """project sampling
         P = UD
         """
-        d, r = divround(self.min_index, k)
-        d2, r2 = divround(self.max_index, k)
-        cpy = self.zero(min_index=d*k, max_index=d2*k)
-        cpy[d*k::k]=self[d*k::k]
+        d, r = divround(self.min_index, step)
+        d2, r2 = divround(self.max_index, step)
+        cpy = self.zero(min_index=d*step, max_index=d2*step)
+        cpy[d*step::step]=self[d*step::step]
         return cpy
 
-    def split_sample(self, k=2):
+    def split_sample(self, step=2):
         """split sampling, split a sequence to (by default) even part and odd part
         
         z -> Dz, DT_1z
         
         Keyword Arguments:
-            k {number} -- sampling interval (default: {2})
+            step {number} -- sampling interval (default: {2})
         """
         return self.down_sample(), self.translate().down_sample()
 

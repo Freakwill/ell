@@ -20,7 +20,7 @@ def test_copy2d():
     a = Ell1d([1,2,3,4]).tensor()
     cpy = a.copy()
     c = cpy @ _filter
-    assert (a.min_index, a.max_index) == (0, 3)
+    assert (a.min_index, a.max_index) == ((0,0), (3,3))
 
 def test_up_sample():
     b = _filter.tensor()
@@ -30,18 +30,18 @@ def test_up_sample():
 
 def test_up_sample_2d():
     b = MultiEll2d(np.ones((4,5,3)))
-    a = b.up_sample(k=2)
+    a = b.up_sample(step=2)
     assert equal(a.shape, np.multiply(b.shape, 2)-1)
     assert equal(a.min_index, np.multiply(b.min_index, 2)) and equal(a.max_index, np.multiply(b.max_index, 2))
 
 def test_down_sample_2d():
     b = MultiEll2d(np.ones((4,5,3)))
-    a = b.down_sample(k=2, axis=0).down_sample(k=2, axis=1)
+    a = b.down_sample(step=2, axis=0).down_sample(step=2, axis=1)
     assert equal(a.min_index, np.floor(np.divide(b.min_index, 2)))
 
-    a = b.down_sample(k=2, axis=0)
+    a = b.down_sample(step=2, axis=0)
     assert a.min_index[0] == b.min_index[0] // 2
-    a = a.down_sample(k=2, axis=1)
+    a = a.down_sample(step=2, axis=1)
     assert a.min_index[1] == b.min_index[1] // 2
 
 
@@ -80,7 +80,7 @@ def test_fillzeros():
 def test_resize():
     a = Ell1d([1,2,3,4,5,6])
     a = a.resize(-3,3)
-    assert check(a, -3,3,7)
+    assert check(a, -3,3,(7,))
 
     a = Ell1d([1,2,3,4,5,6]).tensor()
     assert check(a, (0,0), (5,5), (6,6))
@@ -110,7 +110,7 @@ def test_mul_2d():
     a = Ell2d(np.ones((5,4)))
     b = Ell2d(np.ones((5,4)), min_index=-2)
     c = b*a
-    assert c.min_index == (0,0) and c.max_index == (2, 1)
+    assert c.min_index == (-2,-2) and c.max_index == (4, 3)
 
 def test_sub_m2d():
     a = MultiEll2d(np.ones((5,4,3)))
@@ -138,8 +138,6 @@ def test_add_x():
     a = Ell2d(np.ones((5,4)), min_index=-2)
     b = MultiEll2d(np.ones((5,4,3)), min_index=0)
     c = a +b
-    print(c)
-    ImageRGB(c*255/2).imshow()
     assert isinstance(c, MultiEll2d) and c.shape == (7, 6)
 
-test_add_x()
+

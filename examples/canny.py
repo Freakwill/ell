@@ -2,7 +2,9 @@
 
 """Canny Algo. for Edge Detection
 
-See https://en.wikipedia.org/wiki/Canny_edge_detector
+*Reference*
+https://en.wikipedia.org/wiki/Canny_edge_detector
+J. Canny. A Computational Approach to Edge Detection
 """
 
 import numpy as np
@@ -10,6 +12,8 @@ from ell import *
 
 _setitem = np.ndarray.__setitem__
 
+
+# prepare an image
 im = ImageGray.open('src/lenna.jpg')
 
 # Gaussian filter
@@ -58,13 +62,10 @@ im3 = im2.copy()
 np.putmask(im3, _G<weak, 0)
 
 # Edge tracking by hysteresis
-
 im4 = im3.copy()
 for i in range(1,r-1):
     for j in range(1,c-1):
-        if _G[i, j]<weak:
-            _setitem(im4, (i,j), 0)
-        elif np.all(_G[i-1:i+2,j-1:j+2]<strong):
+        if np.all(_G[i-1:i+2,j-1:j+2]<strong):
             _setitem(im4, (i,j), 0)
 
 
@@ -88,4 +89,3 @@ ax[1,1].set_title('Double thresholding')
 ax[1,2].imshow(im4.to_image(), cmap='gray')
 ax[1,2].set_title('Hysteresis')
 plt.show()
-

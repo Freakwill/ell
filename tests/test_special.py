@@ -22,3 +22,5 @@ def test_unit_2d():
     a=Ell2d.unit(min_index=(-5,-5), max_index=(5,5))
     a[:,:]=o[::2,::2]
     assert True
+
+test_unit_2d()
