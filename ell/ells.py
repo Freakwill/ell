@@ -97,8 +97,13 @@ class BaseEll(np.ndarray):
         if isinstance(min_index, (int, Iterable)):
             if max_index is None:
                 obj.min_index = min_index
-            elif isinstance(max_index, (int, Iterable)):
+            elif isinstance(max_index, Iterable):
                 array = _getitem(array, tuple(slice(0, ma-mi+1) for mi, ma in zip(min_index, max_index)))
+                obj = array.view(cls)
+                obj._min_index = min_index if np.isscalar(min_index) else tuple(min_index)
+                obj._max_index = max_index if np.isscalar(max_index) else tuple(max_index)
+            elif isinstance(max_index, int):
+                array = _getitem(array, slice(0, max_index-min_index+1))
                 obj = array.view(cls)
                 obj._min_index = min_index if np.isscalar(min_index) else tuple(min_index)
                 obj._max_index = max_index if np.isscalar(max_index) else tuple(max_index)
@@ -888,28 +893,10 @@ class BaseMultiEll(BaseEll):
 
 
 class Ellnd(BaseEll):
-    def __new__(cls, array, min_index=0, max_index=None, *args, **kwargs):
-
-        obj = np.asarray(array).view(cls)
-        if isinstance(min_index, (int, Iterable)):
-            if max_index is None:
-                obj.min_index = min_index
-            elif isinstance(max_index, (int, Iterable)):
-                obj._min_index = min_index if np.isscalar(min_index) else tuple(min_index)
-                obj._max_index = max_index if np.isscalar(max_index) else tuple(max_index)
-            else:
-                raise TypeError('type of `max_index` should be int or iterable object.')
-        elif min_index is None:
-            if max_index is None:
-                raise IndexUnavailableError()
-            else:
-                obj.max_index = max_index
-        else:
-            raise TypeError('type of `min_index` should be int or iterable object.')
-        return obj
+    # just define __getitem__
 
     def __getitem__(self, ind):
-        # get one element
+        # get ell[ind]
         if isinstance(ind, int):
             if np.any(ind < self.min_index) or np.any(ind > self.max_index):
                 return 0
@@ -946,14 +933,13 @@ class Ellnd(BaseEll):
 
 
 class MultiEllnd(Ellnd, BaseMultiEll):
-    
     pass
 
 class Ell2d(Ellnd):
     _ndim = 2
 
     @classmethod
-    def from_image(cls, image, min_index=np.array([0,0]), max_index=None, chennal=0):
+    def from_image(cls, image, min_index=(0,0), max_index=None, chennal=0):
         if chennal is None:
             array = np.asarray(image, dtype=np.float64)
         else:
@@ -961,7 +947,7 @@ class Ell2d(Ellnd):
         if array.ndim !=2:
             assert DimError(2, details='Make sure the array representing the image has 2 dim.')
         if max_index is None:
-            max_index = min_index + np.array(array.shape) - 1
+            max_index = np.add(min_index, array.shape) - 1
         return cls(array, min_index=min_index, max_index=max_index)
 
     def to_image(self, mode='L'):
@@ -1037,29 +1023,40 @@ class Ell2d(Ellnd):
         """down sampling
         D: z(m:M) => w([m/2]:[M/2]), size -> [size/2]
         """
-        if isinstance(step, int):
-            step = (step, step)
-        if axis is None or axis == (0,1):
+        if axis is None:
+            if isinstance(step, int):
+                step = (step, step)
             d10, r0 = divround(self.min_index[0], step[0])
             d20, _ = divround(self.max_index[0], step[0])
             d11, r1 = divround(self.min_index[1], step[1])
             d21, _ = divround(self.max_index[1], step[1])
             array = _getitem(self, (np.s_[r0::step[0]], np.s_[r1::step[1]]))
-            min_index = (d10, d11)
-            max_index = (d20, d21)
-        elif axis == 0:
-            d10, r0 = divround(self.min_index[0], step[0])
-            d20, _ = divround(self.max_index[0], step[0])
-            array = _getitem(self, (np.s_[r0::step[0]], COLON))
-            min_index = (d10, self.min_index[1])
-            max_index = (d20, self.max_index[1])
-        elif axis == 1:
-            d11, r1 = divround(self.min_index[1], step[1])
-            d21, _ = divround(self.max_index[1], step[1])
-            array = _getitem(self, (COLON, np.s_[r1::step[1]]))
-            min_index = (self.min_index[0], d11)
-            max_index = (self.max_index[0], d21)
-        return self.__class__(array, min_index=min_index, max_index=max_index)
+            _min_index = (d10, d11)
+            _max_index = (d20, d21)
+        elif isinstance(axis, tuple):
+            if axis == (0,1):
+                return self.down_sample(step)
+            else:
+                return self.down_sample(step, axis[0])
+        elif isinstance(axis, int):
+            assert isinstance(step, int)
+            if axis == 0:
+                d10, r0 = divround(self.min_index[0], step)
+                d20, _ = divround(self.max_index[0], step)
+                array = _getitem(self, (np.s_[r0::step], COLON))
+                _min_index = (d10, self.min_index[1])
+                _max_index = (d20, self.max_index[1])
+            elif axis == 1:
+                d11, r1 = divround(self.min_index[1], step)
+                d21, _ = divround(self.max_index[1], step)
+                array = _getitem(self, (COLON, np.s_[r1::step]))
+                _min_index = (self.min_index[0], d11)
+                _max_index = (self.max_index[0], d21)
+            else:
+                raise ValueError('axis = 0 or 1, if it is an integer')
+        else:
+            raise TypeError('axis has to be an instance of tuple or int')
+        return self.__class__(array, min_index=_min_index, max_index=_max_index)
 
 
     def plot(self, irange=None, scale=1, axes=None, *args, **kwargs):

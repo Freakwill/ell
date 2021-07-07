@@ -26,7 +26,7 @@ To implement the algorithms in wavelet analysis.
 
 ## Requirements
 
-mainly and heavily requires `numpy`
+mainly and heavily requires `numpy/scipy/matplotlib` (I believe that you have owned them)
 
 for image classes, it also needs  [pillow](https://pillow.readthedocs.io/en/stable/)
 
@@ -48,7 +48,7 @@ Plz download it from [github](https://github.com/Freakwill/ell). It is not loade
 
 `Ell1d, Ell2d`: sequences on $\Z$ and $\Z^2$
 
-`Ellnd`: higher-dim sequances
+`Ellnd`: higher-dim sequances, direct subclass of BaseEll. `ell` is an alias for it, as `np.array` for `np.ndarray`. Ellnd really include Ell1d and Ell2d, but the two classes are so special that they need independant class names. The author spent most time in studing them. At the beginning of the development, there were the two classes only. Users are recommanded to subclass it.
 
 #### multi-value ells
 

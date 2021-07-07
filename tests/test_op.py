@@ -44,7 +44,6 @@ def test_up_sample_m2d():
     assert equal(a.shape[1], np.multiply(b.shape[1], 2)-1)
     assert equal(a.min_index[1], np.multiply(b.min_index[1], 2)) and equal(a.max_index[1], np.multiply(b.max_index[1], 2))
 
-test_up_sample_m2d()
 
 def test_down_sample_m2d():
     b = MultiEll2d(np.ones((4,5,3)))

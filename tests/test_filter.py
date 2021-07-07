@@ -33,6 +33,8 @@ def test_reduce_2d():
     print(f"{reduced1:s}, {reduced2:s}, {reduced3:s}")
     assert reduced1.shape == reduced2.shape
 
+test_reduce_2d()
+
 def test_filter_2d():
     signal = Ell1d(np.sin(np.linspace(0,3,10))).tensor()
     reduced = signal.filter(_filter)
