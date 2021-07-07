@@ -101,7 +101,19 @@ def replace_tuple(t, v, axis=None):
             a[list(axis)]=v
         return tuple(a)
 
+def op_tuple(t, op, axis=None):
+    if axis is None:
+        return op(t)
+    else:
+        a = np.array(t)
+        if isinstance(axis, int):
+            a[axis] = op(a[axis])
+        else:
+            a[list(axis)] = op(a[list(axis)])
+        return list(a)
+
 def inc_tuple(t, v, axis=None):
+    # same to op_tuple(t, lambda x: np.add(a, v), axis)
     if axis is None:
         return np.add(t, v)
     else:
@@ -110,7 +122,7 @@ def inc_tuple(t, v, axis=None):
             a[axis]+=v
         else:
             a[list(axis)]+=v
-        return list(a)
+        return tuple(a)
 
 def is_index(i):
     return isinstance(i, (int, np.int64))

@@ -28,13 +28,25 @@ def test_up_sample():
     assert equal(a.shape, np.multiply(b.shape, 2)-1)
     assert a.min_index == tuple(np.multiply(b.min_index, 2)) and equal(a.max_index, np.multiply(b.max_index, 2))
 
-def test_up_sample_2d():
+def test_up_sample_m2d():
     b = MultiEll2d(np.ones((4,5,3)))
     a = b.up_sample(step=2)
     assert equal(a.shape, np.multiply(b.shape, 2)-1)
     assert equal(a.min_index, np.multiply(b.min_index, 2)) and equal(a.max_index, np.multiply(b.max_index, 2))
 
-def test_down_sample_2d():
+def test_up_sample_m2d():
+    b = MultiEll2d(np.ones((4,5,3)))
+    a = b.up_sample(step=2)
+    assert equal(a.shape, np.multiply(b.shape, 2)-1)
+    assert equal(a.min_index, np.multiply(b.min_index, 2)) and equal(a.max_index, np.multiply(b.max_index, 2))
+    b = MultiEll2d(np.ones((4,5,3)))
+    a = b.up_sample(step=2, axis=1)
+    assert equal(a.shape[1], np.multiply(b.shape[1], 2)-1)
+    assert equal(a.min_index[1], np.multiply(b.min_index[1], 2)) and equal(a.max_index[1], np.multiply(b.max_index[1], 2))
+
+test_up_sample_m2d()
+
+def test_down_sample_m2d():
     b = MultiEll2d(np.ones((4,5,3)))
     a = b.down_sample(step=2, axis=0).down_sample(step=2, axis=1)
     assert equal(a.min_index, np.floor(np.divide(b.min_index, 2)))

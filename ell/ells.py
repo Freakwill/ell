@@ -496,35 +496,37 @@ shape: {self.shape}"""
         """up sampling
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
         """
-        if isinstance(step, int):
-            step = tuple(step for _ in range(len(axis)))
-        cpy = self.copy()
+
+        array = np.asarray(self)
         if axis is None:
-            a = np.zeros((step for i in range(self.ndim)))
+            if isinstance(step, int):
+                step = tuple(step for _ in range(len(axis)))
+            a = np.zeros((step[i] for i in range(self.ndim)))
             a[tuple(0 for i in range(self.ndim))] = 1
-            cpy = self.__class__(cpy.stepron(a))
+            array = np.kron(array, a)
             for a in range(self.ndim):
-                cpy = np.delete(cpy, -np.arange(1, step[a]), axis=a)
-            cpy.min_index *= step
-            cpy.max_index *= step
+                array = np.delete(array, -np.arange(1, step[a]), axis=a)
+            _min_index = op_tuple(self.min_index, lambda x: np.multiply(x, step), axis=axis)
+            _max_index = op_tuple(self.max_index, lambda x: np.multiply(x, step), axis=axis)
         elif isinstance(axis, int):
+            assert isinstance(step, int), '`step` should be an integer if axis is an integer!'
             a = np.zeros((step[i] if i == axis else 1 for i in range(self.ndim)))
             a[tuple(0 for i in range(self.ndim))] = 1
             cpy = self.__class__(cpy.kron(a))
-            cpy = np.delete(np.delete(cpy, -np.arange(1, step[a]), axis=0), -1, axis=1)
-            cpy.min_index[axis] *= step
-            cpy.max_index[axis] *= step
+            cpy = np.delete(np.delete(cpy, -np.arange(1, step), axis=0), -1, axis=1)
+            _min_index = op_tuple(self.min_index, lambda x: np.multiply(x, step), axis=axis)
+            _max_index = op_tuple(self.max_index, lambda x: np.multiply(x, step), axis=axis)
         elif isinstance(axis, tuple):
             a = np.zeros(tuple(step[i] if i in axis else 1 for i in range(self.ndim)))
             a[tuple(0 for i in range(self.ndim))] = 1
             cpy = self.__class__(cpy.kron(a))
-            for a in axis:
-                cpy = np.delete(cpy, -np.arange(1, step[a]), axis=a)
-                cpy.min_index[a] *= step[a]
-                cpy.max_index[a] *= step[a]
+            for i in axis:
+                cpy = np.delete(cpy, -np.arange(1, step[i]), axis=i)
+            _min_index = op_tuple(self.min_index, lambda x: np.multiply(x, step), axis=axis)
+            _max_index = op_tuple(self.max_index, lambda x: np.multiply(x, step), axis=axis)
         else:
             raise TypeError('axis is an instance of int | tuple');
-        return cpy
+        return self.__class__(array, min_index=_min_index, max_index=_max_index)
     
     def project_sample(self, step=2, axis=None):
         """project sampling
@@ -783,7 +785,6 @@ class BaseMultiEll(BaseEll):
     @classmethod
     def zero(cls, min_index=0, max_index=None, ndim=None, n_channels=3):
         ndim = ndim or cls._ndim or 1
-        print(ndim)
 
         if max_index is None:
             if ndim == 1:
@@ -947,7 +948,6 @@ class Ell2d(Ellnd):
 
     @classmethod
     def from_image(cls, image, min_index=np.array([0,0]), max_index=None, chennal=0):
-        print(image)
         if chennal is None:
             array = np.asarray(image, dtype=np.float64)
         else:
@@ -994,26 +994,38 @@ class Ell2d(Ellnd):
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
         '''
 
-        if axis is None or axis == (0, 1):
+        array = np.asarray(self)
+        if axis is None:
             if isinstance(step, int):
                 step = (step, step)
             a = np.zeros(step)
             a[0,0] = 1
-            array = np.kron(self, a)
-            array = np.delete(np.delete(array, -np.arange(1, step[0]), axis=0), -np.arange(1, step[1]), axis=1)
+            array = np.delete(np.delete(np.kron(array, a), -np.arange(1, step[0]), axis=0), -np.arange(1, step[1]), axis=1)
+            _min_index = op_tuple(self.min_index, lambda x: np.multiply(x, step), axis)
+            _max_index = op_tuple(self.max_index, lambda x: np.multiply(x, step), axis)
         elif isinstance(axis, int):
-            if axis==1:
+            if axis == 0:
+                a = np.zeros((1, step))
+                a[0,0] = 1
+            if axis == 1:
                 a = np.zeros(step)
                 a[0] = 1
             else:
-                a = np.zeros((1, step))
-                a[0,0] = 1
-            array = np.kron(self, a)
-            array = np.delete(array, -np.arange(1, step), axis=axis)
+                raise ValueError('axis = 0 or 1 if it is an integer.')
+            array = np.delete(np.kron(array, a), -np.arange(1, step), axis=axis)
+            _min_index = np.multiply(self.min_index, step)
+            _max_index = np.multiply(self.max_index, step)
+        elif isinstance(axis, tuple):
+            if len(axis)==1:
+                return self.up_sample(step=step, axis=axis[0])
+            elif axis == (0, 1):
+                return self.up_sample(step=step, axis=None)
+            else:
+                raise ValueError('len of `axis` has to be <=2!')
         else:
             raise ValueError("Value of `axis` is invalid!")
 
-        return self.__class__(array, min_index=np.multiply(self.min_index, step), max_index=np.multiply(self.max_index, step))
+        return self.__class__(array, min_index=_min_index, max_index=_max_index)
 
     def down_sample(self, step=2, axis=None):
         """down sampling
@@ -1068,18 +1080,28 @@ class MultiEll2d(MultiEllnd, Ell2d):
         U: z(m:M) => w(2m:2M),  size -> size * 2 - 1
         """
 
-        cpy = self.copy()
-        if isinstance(axis, int):
+        array = np.asarray(self)
+        if axis is None:
+            if isinstance(step, int):
+                step = (step, step)
+            a = np.zeros(step+(1,))
+            a[0, 0, 0] = 1
+            _min_index = np.multiply(self.min_index, step)
+            _max_index = np.multiply(self.max_index, step)
+            array = np.delete(np.delete(np.kron(array, a), -np.arange(1, step[0]), axis=0), -np.arange(1, step[1]), axis=1)
+        elif isinstance(axis, int):
             assert isinstance(step, int), 'step should be an instance of int, when axis is an integer.'
             if axis == 0:
+                a = np.zeros((step, 1, 1))
+                a[0, 0, 0] = 1
+            elif axis == 1:
                 a = np.zeros((step, 1))
                 a[0, 0] = 1
             else:
-                a = np.zeros(step)
-                a[0] = 1
-            cpy = np.delete(cpy.kron(a), -np.arange(1, step), axis=axis)
-            cpy.min_index[axis] *= step
-            cpy.max_index[axis] *= step
+                raise ValueError('axis = 0 or 1 if it is an integer.')
+            array = np.delete(np.kron(array, a), -np.arange(1, step), axis=axis)
+            _min_index = op_tuple(self.min_index, lambda x: np.multiply(x, step), axis=axis)
+            _max_index = op_tuple(self.max_index, lambda x: np.multiply(x, step), axis=axis)
         elif isinstance(axis, tuple):
             if len(axis)==1:
                 return self.up_sample(step=step, axis=axis[0])
@@ -1087,17 +1109,10 @@ class MultiEll2d(MultiEllnd, Ell2d):
                 return self.up_sample(step=step, axis=None)
             else:
                 raise ValueError('len of `axis` has to be <=2!')
-        elif axis is None:
-            if isinstance(step, int):
-                step = (step,step)
-            a = np.zeros(step+(1,))
-            a[0, 0, 0] = 1
-            cpy = self.__class__(np.kron(np.asarray(self), a), min_index=np.multiply(self.min_index, step), max_index=np.multiply(self.max_index, step))
-            cpy = np.delete(np.delete(cpy, -np.arange(1, step[0]), axis=0), -np.arange(1, step[1]), axis=1)
         else:
-            raise TypeError('`axis` is an instance of int | tuple');
+            raise TypeError('`axis` is an instance of int | tuple |None');
 
-        return cpy
+        return self.__class__(array, min_index=_min_index, max_index=_max_index)
 
     def conv2d(self, other):
         obj = np.dstack([signal.convolve2d(self[:,:,ch], other) for ch in range(self.n_channels)])
