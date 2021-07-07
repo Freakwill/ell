@@ -36,8 +36,8 @@ D = Ell1d([1,-1])
 L = Ell2d([[0,1,0],[1,-4,1],[0,1,0]], min_index=(-1,-1))
 
 # embed u1 to u2
-embed_size = 120, 100
-u1 = Image.open('melt.jpg').resize(embed_size)
+embed_size = 150, 100
+u1 = Image.open('eye.jpg').resize(embed_size)
 u2 = Image.open('hand.jpg').resize((500,500))
 
 start = 150, 200
