@@ -30,6 +30,8 @@ mainly and heavily requires `numpy`
 
 for image classes, it also needs  [pillow](https://pillow.readthedocs.io/en/stable/)
 
+for wavelet tree, it needs [treelib](https://treelib.readthedocs.io/)
+
 
 
 ## Download

@@ -42,8 +42,8 @@ class ImageLike:
         if exposure:
             obj = obj.exposure()
         if masked:
-            putmask(obj < 0, 0)
-            putmask(obj > 255, 255)
+            np.putmask(obj, obj < 0, 0)
+            np.putmask(obj, obj > 255, 255)
         return Image.fromarray(np.asarray(np.round(obj)).astype('uint8')).convert(mode)
 
     def imshow(self, *args, **kwargs):

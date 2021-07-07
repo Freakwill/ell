@@ -103,7 +103,7 @@ class BaseEll(np.ndarray):
                 obj._min_index = min_index if np.isscalar(min_index) else tuple(min_index)
                 obj._max_index = max_index if np.isscalar(max_index) else tuple(max_index)
             else:
-                raise TypeError('type of `max_index` should be int or iterable object.')
+                raise TypeError('type of argument `max_index` should be int or iterable object.')
         elif max_index is None:
             raise IndexUnavailableError()
         elif isinstance(max_index, (int, Iterable)):
@@ -135,7 +135,10 @@ class BaseEll(np.ndarray):
 
     @property
     def min_index(self):
-        return self._min_index
+        if np.isscalar(self._min_index):
+            return (self._min_index,) * self.ndim
+        else:
+            return self._min_index
     
     @min_index.setter
     def min_index(self, v):
@@ -148,7 +151,10 @@ class BaseEll(np.ndarray):
 
     @property
     def max_index(self):
-        return self._max_index
+        if np.isscalar(self._max_index):
+            return (self._max_index,) * self.ndim
+        else:
+            return self._max_index
 
     @max_index.setter
     def max_index(self, v):
@@ -1330,15 +1336,15 @@ class Ell1d(BaseEll):
         """
 
         a = np.zeros(step); a[0] = 1
-        obj = np.delete(np.stepron(self.copy(), a), -np.arange(1, step))
+        obj = np.delete(np.kron(np.asarray(self), a), -np.arange(1, step))
         return self.__class__(obj, min_index=self.min_index*step, max_index=self.max_index*step)
 
     def project_sample(self, step=2):
         """project sampling
         P = UD
         """
-        d, r = divround(self.min_index, step)
-        d2, r2 = divround(self.max_index, step)
+        d, _ = divround(self.min_index, step)
+        d2, _ = divround(self.max_index, step)
         cpy = self.zero(min_index=d*step, max_index=d2*step)
         cpy[d*step::step]=self[d*step::step]
         return cpy
@@ -1417,3 +1423,5 @@ class Ell1d(BaseEll):
         xs = np.arange(lb, ub, 2**{-level}, *args, **kwargs)
         return Ell1d(f(xs))
 
+def ell(*args, **kwargs):
+    return Ellnd(*args, **kwargs)
