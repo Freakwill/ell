@@ -2,15 +2,15 @@
 
 The space of sequences, and the operators on it.
 
-$\ell$ is latex code of l, offen used as the space of sequences.
+$\ell$ is latex code of l, offen used as the symbol of the space of sequences.
 
-And Ell takes the symbol as its logo:
+And Ell takes the symbol as its logo. Enjoy ell!
 
  ![](src/ell-logo.png)
 
 ## Concepts
 
-A sequence is an array (`numpy.ndarray`) with start-index and end-index. I wll call it an *ell* in the context.
+A sequence is an array (`numpy.ndarray`) with start-index and end-index. I will call it an *ell* in the context of programing.
 
 When adding or other operator acting on two sequences, you have two fit their indexes, that has been done by a decorator silently.
 
@@ -34,7 +34,9 @@ for image classes, it also needs  [pillow](https://pillow.readthedocs.io/en/stab
 
 ## Download
 
-Plz download it from *github*. It is not loaded up to *pypi* currently.
+Plz download it from [github](https://github.com/Freakwill/ell). It is not loaded up to *pypi* currently.
+
+`pip isntall https://github.com/Freakwill/ell`
 
 ## Main classes
 
@@ -45,6 +47,8 @@ Plz download it from *github*. It is not loaded up to *pypi* currently.
 `Ell1d, Ell2d`: sequences on $\Z$ and $\Z^2$
 
 `Ellnd`: higher-dim sequances
+
+#### multi-value ells
 
 `BaseMultiEll`: multi-values version of `BaseEll`, similarly it has following two subclasses
 
@@ -72,10 +76,10 @@ Before test the examples, plz import classes with`from ell import *`
 
 #### basic operation
 
-Ell is a subclass of numpy.ndarray, so it inherits all methods of ndarray. Functions defined on arrayes can act on ells and return Ell objects in most case.
+Ell is a subclass of `numpy.ndarray`, so it inherits all methods of ndarray. Functions defined on arrayes can act on ells and return Ell objects in most case.
 
 ```python
-a = Ell1d([1,2,3,4])
+a = Ell1d([1,2,3,4])  # by default, min_index=0
 b = Ell1d([2,3,4,5,5,6], min_index=-3)
 c = Ell1d([-2.0, -3.0, -4.0, -4.0, -3.0, -3.0, 4.0], min_index=-3)
 assert a-b==c
@@ -86,7 +90,7 @@ assert isinstance(a.tensor(), Ell2d)
 
 
 
-Only difference is that in Ell, we use `@` to implement convolution, as in following example.
+Only exception is that in Ell, we use `@` to implement convolution, as in following example.
 
 ```python
 from ell import *
@@ -95,11 +99,11 @@ gm = 1/ 159 * Ell2d([[2, 4, 5, 4, 2],
 [4, 9, 12, 9, 4],
 [5, 12, 15, 12, 5],
 [4, 9, 12, 9, 4],
-[2, 4, 5, 4, 2]])  # gaussian mask
+[2, 4, 5, 4, 2]], min_index=-2)  # gaussian mask
 
 im = ImageRGB.open('src/lenna.jpg')
 
-(im-im @ gm).to_image().show()
+(im-im @ gm).imshow()
 
 ```
 
@@ -119,10 +123,14 @@ s_im = im.conv1d(s1, axis=0).conv1d(s2, axis=1)
 
 # <=> s_im = im @ s1.tensor(s2) but might more slow
 
-(s_im).to_image().show()
+s_im.imshow()
 ```
 
 
+
+*Remark* In numpy.array, `@` is multiplication of matrices. The convolution of sequences is the multiplication of Toeplitz matrices of the sequences.
+
+*Remark* in most case, just use `a op b`, instead of `b op a`, if class of a is subclass of the class of b. Take the example of image processing.
 
 ### draw wavelets
 
@@ -166,7 +174,7 @@ plt.show()
 im ImageRGB.open('lenna.jpg')
 im = im @ Ell1d([1/2,-1, 1/2])
 # equiv. to im = im @ Ell1d([1/2,-1, 1/2]).tensor()
-im.to_image().show()
+im.imshow()
 
 # filtering by wavelets
 im = ImageRGB.open('lenna.jpg')
@@ -175,17 +183,17 @@ im = ImageRGB.open('lenna.jpg')
 im_low = (im @ Filter.from_name('db2').H).D
 # implement of Hx = D(x*h~)
 # <==> im = im.reduce(Filter.from_name('db2'))
-im_low.to_image().show()
+im_low.imshow()
 
 im_high = (im @ Filter.from_name('db2').g.H).D
 # implement of Hx = D(x*g~) where g is the corresponding high-pass filter
 # <==> im = im.reduce(Filter.from_name('db2'))
-im_high.to_image().show()
+im_high.imshow()
 
 # expanding
 im = im_low.U @ Filter.from_name('db2')
 # <==> im = im.expand(Filter.from_name('db2'))
-im.to_image().show()
+im.imshow()
 
 # to execute the two steps <==> call im = im.ezfilter(Filter.from_name('db2'))
 ```
@@ -204,8 +212,6 @@ There are some experiements in `examples/` most of whom are related to wavelets.
 
 `poisson.py` poisson editting
 
-
-
 ## TO-DO
 
 - [ ] define filter banks
@@ -213,4 +219,3 @@ There are some experiements in `examples/` most of whom are related to wavelets.
 - [x] index should be a tuple in feature
 - [ ] periodic sequences.
 - [ ] audio process
-
