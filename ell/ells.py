@@ -1,24 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-r"""
-An open source Python library for working with sequance spaces.
-
-Sequence spaces is a type of linear space in math noted as $\ell$.
-
-A sequence implemented by Python is represented by two parts:
-1. values: numpy.ndarray
-2. min_index, max_index: lower bound and upper bound of the indexes on which the values are non-zero.
-By default, the indexes start from 0
-
-In the context of Python, we call a such sequance an ell.
-
--------------------------------
-Author: William
-From: 2015-07-28 (this work is initialized from 2015 with Matlab)
-"""
-
-
 import copy
 from types import MethodType
 from collections.abc import Iterable
@@ -132,6 +114,39 @@ class BaseEll(np.ndarray):
         else:
             raise TypeError('Type of `obj` should be BaseEll | ndarray | tuple | list')
 
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+
+        args = []
+        for input_ in inputs:
+            if isinstance(input_, BaseEll):
+                args.append(input_.view(np.ndarray))
+            else:
+                args.append(input_)
+
+        outputs = kwargs.get('out', None)
+        if outputs is None:
+            outputs = (None,) * ufunc.nout
+        else:
+            out_args = []
+            for output in outputs:
+                if isinstance(output, BaseEll):
+                    out_args.append(output.view(np.ndarray))
+                else:
+                    out_args.append(output)
+            kwargs['out'] = tuple(out_args)
+
+        results = super().__array_ufunc__(ufunc, method, *args, **kwargs)
+        if results is NotImplemented:
+            return NotImplemented
+
+        if ufunc.nout == 1:
+            output = outputs[0]
+            return self.__class__(result, min_index=self.min_index, max_index=self.max_index)
+                if output is None else output
+        else:
+            return tuple(self.__class__(result, min_index=self.min_index, max_index=self.max_index)
+                if output is None else output for result, output in zip(results, outputs))
+
 
     @classmethod
     def random(cls, min_index=0, *args, **kwargs):
@@ -205,48 +220,6 @@ class BaseEll(np.ndarray):
     @property
     def index_pair(self):
         return self.min_index, self.max_index
-    
-
-    def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
-
-        args = []
-        in_no = []
-        for i, input_ in enumerate(inputs):
-            if isinstance(input_, BaseEll):
-                in_no.append(i)
-                args.append(input_.view(np.ndarray))
-            else:
-                args.append(input_)
-
-        outputs = out
-        out_no = []
-        if outputs:
-            out_args = []
-            for j, output in enumerate(outputs):
-                if isinstance(output, BaseEll):
-                    out_no.append(j)
-                    out_args.append(output.view(np.ndarray))
-                else:
-                    out_args.append(output)
-            kwargs['out'] = tuple(out_args)
-        else:
-            outputs = (None,) * ufunc.nout
-
-        results = super().__array_ufunc__(ufunc, method, *args, **kwargs)
-        if results is NotImplemented:
-            return NotImplemented
-
-        if method == 'at':
-            return
-
-        if ufunc.nout == 1:
-            results = (results,)
-
-        results = tuple(self.__class__(result, min_index=self.min_index, max_index=self.max_index)
-            if output is None else output for result, output in zip(results, outputs))
-
-        return results[0] if len(results) == 1 else results
-
 
     @classmethod
     def zero(cls, min_index=0, max_index=None, ndim=None):
@@ -307,9 +280,9 @@ shape: {self.shape}"""
         if np.isscalar(other):
             np.all(super().__eq__(other))
         elif isinstance(other, BaseEll):
-            return np.all(_equal(self, other)) and np.all(self.min_index == other.min_index) and np.all(self.max_index == other.max_index)
+            return np.all(_equal(self, other)) and np.all(_equal(self.min_index, other.min_index)) and np.all(_equal(self.max_index, other.max_index))
         else:
-            raise TypeError("type of `other` is invalid!")
+            raise TypeError("type of `other` should be scalar or ell!")
 
     @fit
     def __iadd__(self, other):
@@ -350,7 +323,7 @@ shape: {self.shape}"""
 
     def __imatmul__(self, other):
         # convolution: size -> size1 + size2 - 1
-        raise NotImplementedError
+        return self.conv(other)
 
     def __matmul__(self, other):
         if np.isscalar(other):
@@ -366,6 +339,18 @@ shape: {self.shape}"""
             return other * self
         else:
             return _rmatmul(self, other)
+
+    def conv(self, other, mode='full', *args, **kwargs):
+        array = scipy.signal.convolve(self, other, mode=mode, *args, **kwargs)
+        if mode == 'full':
+            _min_index = np.add(self.min_index, other.min_index)
+            _max_index = np.add(self.max_index, other.max_index)
+        elif mode == 'same':
+            _min_index = self.min_index
+            _max_index = self.max_index
+        else:
+            raise ModeError()
+        return self.__class__(array, min_index=_min_index, max_index=_max_index)
 
     @fit3
     def dot(self, other=None):
@@ -740,12 +725,14 @@ shape: {self.shape}"""
         else:
             raise TypeError('`other` should be an instance of Ell1d')
         if mode == 'full':
-            min_index = inc_tuple(self.min_index, other.min_index, axis=axis)
-            max_index = inc_tuple(self.max_index, other.max_index, axis=axis)
+            _min_index = inc_tuple(self.min_index, other.min_index, axis=axis)
+            _max_index = inc_tuple(self.max_index, other.max_index, axis=axis)
         elif mode == 'same':
-            min_index = self.min_index
-            max_index = self.max_index
-        return self.__class__(obj, min_index=min_index, max_index=max_index)
+            _min_index = self.min_index
+            _max_index = self.max_index
+        else:
+            raise ModeError()
+        return self.__class__(obj, min_index=_min_index, _max_index=max_index)
 
 
 class AsReal:
@@ -832,7 +819,6 @@ class BaseMultiEll(BaseEll):
         if np.isscalar(other) or (isinstance(other, np.ndarray) and other.ndim==1) or isinstance(other, MultiEllnd):
             return super().__add__(other)
         elif equal_ndim(self, other):
-            print('hfuck')
             return super().__add__(self.embed(other))
         else:
             raise TypeError('unsupported type!')
@@ -964,21 +950,34 @@ class Ell2d(Ellnd):
         else:
             raise TypeError("`other` should be an instance of Ell1d or Ell2d")
 
-    def conv2d(self, other):
-        obj = signal.convolve2d(self, other)
-        min_index, max_index = np.add(self.min_index, other.min_index), np.add(self.max_index, other.max_index)
+    def conv2d(self, other, mode='full', *args, **kwargs):
+        obj = signal.convolve2d(self, other, mode=mode, *args, **kwargs)
+        if mode == 'full':
+            _min_index = np.add(self.min_index, other.min_index)
+            _max_index = np.add(self.max_index, other.max_index)
+        elif mode == 'same':
+            _min_index = self.min_index
+            _max_index = self.max_index
+        else:
+            raise ModeError()
         return self.__class__(obj, min_index=min_index, max_index=max_index)
 
 
-    def conv_tensor(self, other1, other2=None):
+    def conv_tensor(self, other1, other2=None, mode='full', *args, **kwargs):
         if other2 is None:
             other2 = other1
             min_index = other1.min_index
         else:
             min_index = (other1.min_index, other2.min_index)
-        obj = np.apply_along_axis(np.convolve, 0, np.asarray(self), np.asarray(other1))
-        array = np.apply_along_axis(np.convolve, 1, np.asarray(obj), np.asarray(other2))
+        array = np.apply_along_axis(np.convolve, 0, np.asarray(self), np.asarray(other1), mode=mode, *args, **kwargs)
+        array = np.apply_along_axis(np.convolve, 1, np.asarray(array), np.asarray(other2), mode=mode, *args, **kwargs)
         min_index = np.add(self.min_index, min_index)
+        if mode == 'full':
+            min_index = np.add(self.min_index, min_index)
+        elif mode == 'same':
+            min_index = self.min_index
+        else:
+            raise ModeError()
         return self.__class__(array, min_index=min_index)
 
     def up_sample(self, step=2, axis=None):
@@ -1117,10 +1116,21 @@ class MultiEll2d(MultiEllnd, Ell2d):
 
         return self.__class__(array, min_index=_min_index, max_index=_max_index)
 
-    def conv2d(self, other):
-        obj = np.dstack([signal.convolve2d(self[:,:,ch], other) for ch in range(self.n_channels)])
-        min_index, max_index = np.add(self.min_index, other.min_index), np.add(self.max_index, other.max_index)
-        return self.__class__(obj, min_index=min_index, max_index=max_index)
+    def conv2d(self, other, mode='full', *args, **kwargs):
+        if isinstance(other, MultiEll2d):
+            obj = np.dstack([signal.convolve2d(self.get_channal(ch), other.get_channal(ch), mode=mode, *args, **kwargs) for ch in range(self.n_channels)])
+        else:
+            obj = np.dstack([signal.convolve2d(self.get_channal(ch), other, mode=mode, *args, **kwargs) for ch in range(self.n_channels)])
+        
+        if mode == 'full':
+            _min_index = np.add(self.min_index, other.min_index)
+            _max_index = np.add(self.max_index, other.max_index)
+        elif mode == 'same':
+            _min_index = self.min_index
+            _max_index = self.max_index
+        else:
+            raise ModeError()
+        return self.__class__(obj, min_index=_min_index, max_index=_max_index)
 
 
 class Ell1d(BaseEll):
@@ -1209,7 +1219,6 @@ class Ell1d(BaseEll):
     @property
     def min_index(self):
         return self._min_index
-
 
     @min_index.setter
     def min_index(self, v):
@@ -1422,3 +1431,7 @@ class Ell1d(BaseEll):
 
 def ell(*args, **kwargs):
     return Ellnd(*args, **kwargs)
+
+def ell1d(*args, **kwargs):
+    return Ell1d(*args, **kwargs)
+
