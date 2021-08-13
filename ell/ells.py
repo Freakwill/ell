@@ -141,8 +141,8 @@ class BaseEll(np.ndarray):
 
         if ufunc.nout == 1:
             output = outputs[0]
-            return self.__class__(result, min_index=self.min_index, max_index=self.max_index)
-                if output is None else output
+            return (self.__class__(results, min_index=self.min_index, max_index=self.max_index)
+                if output is None else output)
         else:
             return tuple(self.__class__(result, min_index=self.min_index, max_index=self.max_index)
                 if output is None else output for result, output in zip(results, outputs))
@@ -732,7 +732,7 @@ shape: {self.shape}"""
             _max_index = self.max_index
         else:
             raise ModeError()
-        return self.__class__(obj, min_index=_min_index, _max_index=max_index)
+        return self.__class__(obj, min_index=_min_index, _max_index=_max_index)
 
 
 class AsReal:
