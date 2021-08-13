@@ -732,7 +732,7 @@ shape: {self.shape}"""
             _max_index = self.max_index
         else:
             raise ModeError()
-        return self.__class__(obj, min_index=_min_index, _max_index=_max_index)
+        return self.__class__(obj, min_index=_min_index, max_index=_max_index)
 
 
 class AsReal:
@@ -960,7 +960,7 @@ class Ell2d(Ellnd):
             _max_index = self.max_index
         else:
             raise ModeError()
-        return self.__class__(obj, min_index=min_index, max_index=max_index)
+        return self.__class__(obj, min_index=_min_index, max_index=_max_index)
 
 
     def conv_tensor(self, other1, other2=None, mode='full', *args, **kwargs):
